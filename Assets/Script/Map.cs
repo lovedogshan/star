@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class Map : MonoBehaviour
 {
-    [Header("ÎŞÏŞµØÍ¼")]
+    [Header("æ— é™åœ°å›¾")]
     public GameObject mainCamera;
     public float mapWidth;
     public float mapHeight;

@@ -36,6 +36,9 @@ public class TimePause : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // 如果装配界面开启，禁止暂停逻辑
+        if (SpaceshipAssemblyUI.IsUIOpen) return;
+
         ResumeGame();
     }
 }

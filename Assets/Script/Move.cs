@@ -8,8 +8,8 @@ public class Move : MonoBehaviour
 {
     // Start is called before the first frame update
 
-    private Rigidbody2D rb; // Rigidbody2D ×é¼ş
-    private Vector2 targetPosition; // Ä¿±êÎ»ÖÃ
+    private Rigidbody2D rb; // Rigidbody2D ï¿½ï¿½ï¿½
+    private Vector2 targetPosition; // Ä¿ï¿½ï¿½Î»ï¿½ï¿½
     public NavMeshAgent NavMeshAgent;
     private bool isopen;
     public GameObject cargo;
@@ -17,7 +17,7 @@ public class Move : MonoBehaviour
 
     void Start()
     {
-        rb = GetComponent<Rigidbody2D>(); // »ñÈ¡ Rigidbody2D ×é¼ş
+        rb = GetComponent<Rigidbody2D>(); // ï¿½ï¿½È¡ Rigidbody2D ï¿½ï¿½ï¿½
         NavMeshAgent.updateRotation = false;
         NavMeshAgent.updateUpAxis = false;
 
@@ -25,10 +25,17 @@ public class Move : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(1))
+        // å¦‚æœè£…é…ç•Œé¢å¼€å¯ï¼Œç¦æ­¢ç§»åŠ¨å’ŒèƒŒåŒ…é€»è¾‘
+        if (SpaceshipAssemblyUI.IsUIOpen) return;
+
+        // å¦‚æœç‚¹å‡»åœ¨ UI ä¸Šï¼Œä¸å¤„ç†é¼ æ ‡ç‚¹å‡»
+        bool isPointerOverUI = UnityEngine.EventSystems.EventSystem.current != null && 
+                               UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+
+        if (Input.GetMouseButtonDown(1) && !isPointerOverUI)
         {
             Debug.Log("Pressed right-click.");
-            targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // »ñÈ¡Êó±êµã»÷Î»ÖÃ
+            targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 
         }
         OpenMyBag();
@@ -52,12 +59,12 @@ public class Move : MonoBehaviour
         if (collision.gameObject.tag == "Home")
         {
             
-            Debug.Log("»ñÈ¡Ò»Ö»Ğ¡ß÷");
+            Debug.Log("ï¿½ï¿½È¡Ò»Ö»Ğ¡ï¿½ï¿½");
         }
 
         if (collision.gameObject.tag == "Planet" )
         {
-            Debug.Log("½«Ğ¡ß÷Âô³ö»ñÈ¡10000Å·Ôª");
+            Debug.Log("ï¿½ï¿½Ğ¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡10000Å·Ôª");
         }
 
     }

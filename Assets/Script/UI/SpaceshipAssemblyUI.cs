@@ -30,6 +30,9 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     public TMP_Text shipSpeedText;           // 飞船速度文本
     public TMP_Text shipArmorText;           // 飞船装甲文本
 
+    [Header("=== 游戏内对象引用 ===")]
+    public GameObject gameShip;              // 游戏场景中真正的飞船对象（非预览用）
+
     [Header("=== 配件装配弹窗 ===")]
     public GameObject partSelectPopup;       // 配件选择弹窗（默认隐藏）
     public TMP_Text popupTitleText;          // 弹窗标题文本
@@ -38,6 +41,11 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     public GameObject partItemPrefab;        // 配件项预制体（挂载SpaceshipPartItemUI）
     public Button closePopupButton;          // 关闭弹窗按钮
     #endregion
+
+    [Header("=== 界面显隐控制 ===")]
+    public GameObject uiRootPanel;           // 装配界面的根物体（Canvas下的Panel）
+    public KeyCode toggleKey = KeyCode.E;    // 控制显隐的按键（默认E键）
+
     // ========== 新增：6个挂载点预制体配置（核心） ==========
     [Header("=== 挂载点预制体（固定炮/炮台+大中小） ===")]
     // 固定炮预制体（大/中/小）
@@ -54,7 +62,12 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     public List<SpaceshipPartData> allParts;      // 所有可装配的配件数据
     #endregion
 
+    [Header("=== 全局配置 ===")]
+    public TMP_FontAsset defaultFont;        // 默认字体（需支持中文）
+
     #region 状态变量
+    public static bool IsUIOpen { get; private set; } // 全局静态变量，供游戏逻辑查询界面是否开启
+
     private GameObject currentShipInstance;       // 当前显示的飞船3D实例
     private List<GameObject> currentMountPoints;  // 当前显示的挂载点标记列表
     private SpaceshipData currentShipData;        // 当前选中的飞船数据
@@ -81,6 +94,53 @@ public class SpaceshipAssemblyUI : MonoBehaviour
         playerShipData.LoadData();
         Debug.Log("创建");
         InitializeOwnedShipCards();
+    }
+
+    private void Update()
+    {
+        // 持续同步 UI 状态，防止外部修改 Active 状态导致 IsUIOpen 不一致
+        if (uiRootPanel != null)
+        {
+            IsUIOpen = uiRootPanel.activeSelf;
+        }
+
+        // 监听按键按下（例如 E 键）
+        if (Input.GetKeyDown(toggleKey))
+        {
+            ToggleAssemblyUI();
+        }
+    }
+
+    /// <summary>
+    /// 切换装配界面的可见性
+    /// </summary>
+    public void ToggleAssemblyUI()
+    {
+        if (uiRootPanel != null)
+        {
+            // 防御性检查：如果 uiRootPanel 恰好就是脚本所在的物体，关了就打不开了
+            if (uiRootPanel == gameObject)
+            {
+                Debug.LogError("[SpaceshipAssemblyUI] uiRootPanel 不能是脚本所在的物体本身，否则关了之后脚本就停止运行，无法再次打开了！请将脚本挂在一个永远开启的 Manager 物体上，或者将 uiRootPanel 设置为脚本物体的子物体。");
+                return;
+            }
+
+            bool isActive = !uiRootPanel.activeSelf;
+            uiRootPanel.SetActive(isActive);
+            IsUIOpen = isActive; // 更新静态变量状态
+
+            // 如果隐藏界面，同时关闭配件选择弹窗
+            if (!isActive)
+            {
+                ClosePartPopup();
+            }
+            
+            Debug.Log($"[SpaceshipAssemblyUI] 界面显示状态切换为: {isActive}");
+        }
+        else
+        {
+            Debug.LogWarning("[SpaceshipAssemblyUI] uiRootPanel 未赋值，无法切换显示！");
+        }
     }
 
     #region 初始化相关
@@ -408,18 +468,20 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     private void OnMountPointClicked(MountPointData mountPoint)
     {
         selectedMountPoint = mountPoint;
+    
 
         // 配置弹窗标题
  //       popupTitleText.text = $"装配 - {mountPoint.pointName} ({mountPoint.pointType})";
 
         // 筛选匹配的配件
         List<SpaceshipPartData> matchedParts = FilterMatchedParts(mountPoint);
-
+        
         // 生成配件列表
         GeneratePartList(matchedParts);
-
+        Debug.Log("显示");
         // 显示弹窗
         partSelectPopup.SetActive(true);
+
     }
 
     /// <summary>
@@ -443,8 +505,19 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     {
         List<SpaceshipPartData> matched = new List<SpaceshipPartData>();
 
+        if (allParts == null || allParts.Count == 0)
+        {
+            Debug.LogError("【配置错误】SpaceshipAssemblyUI 的 All Parts 列表为空！请在 Inspector 中赋值。");
+            return matched;
+        }
+
+        Debug.Log($"正在为挂载点 [{mountPoint.pointName}] 筛选配件... " +
+                  $"支持类型: {string.Join(",", mountPoint.compatibleParts)}, 最大尺寸: {mountPoint.maxSupportSize}");
+
         foreach (var part in allParts)
         {
+            if (part == null) continue;
+
             // 条件1：配件类型在挂载点兼容列表中
             bool typeMatch = mountPoint.compatibleParts.Contains(part.partType);
             // 条件2：配件尺寸 ≤ 挂载点支持的最大尺寸
@@ -454,8 +527,14 @@ public class SpaceshipAssemblyUI : MonoBehaviour
             {
                 matched.Add(part);
             }
+            else
+            {
+                // 可选：调试为何不匹配（如果需要详细调试可取消注释）
+                // Debug.Log($"配件 [{part.partName}] 不匹配 - 类型匹配: {typeMatch} ({part.partType}), 尺寸匹配: {sizeMatch} ({part.partSize})");
+            }
         }
 
+        Debug.Log($"筛选结果：找到 {matched.Count} 个匹配的配件");
         return matched;
     }
 
@@ -518,55 +597,122 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     {
         if (selectedMountPoint == null || part == null) return;
 
-        // 1. 卸载该挂载点已装配的配件（如果有）
-        if (mountedParts.ContainsKey(selectedMountPoint.pointName))
+        // 1. 处理游戏中的飞船（Game Ship）
+        if (gameShip != null)
         {
-            if (mountedParts[selectedMountPoint.pointName] != null)
-            {
-                Destroy(mountedParts[selectedMountPoint.pointName]);
-            }
-            mountedParts.Remove(selectedMountPoint.pointName);
+            ApplyPartToObject(gameShip, part, "Game");
         }
 
-        // 2. 找到飞船实例中对应的挂载点Transform（通过名称查找）
-        if (currentShipInstance == null)
+        // 2. 处理 UI 预览中的飞船实例（Preview Ship）
+        if (currentShipInstance != null)
         {
-            Debug.LogError("当前飞船实例未生成！");
-            return;
+            ApplyPartToObject(currentShipInstance, part, "Preview");
         }
-
-        // 使用 RecursiveFind 查找，或者直接 Find（假设挂载点是直接子物体）
-        // 根据用户描述：飞船 -> 挂载点，所以是直接子物体
-        Transform mountPointTransform = currentShipInstance.transform.Find(selectedMountPoint.pointName);
         
-        // 如果找不到，尝试深度查找（为了稳健性）
-        if (mountPointTransform == null)
-        {
-            mountPointTransform = FindDeepChild(currentShipInstance.transform, selectedMountPoint.pointName);
-        }
+        // 3. 更新 UI 预览图上的图标显示
+        UpdateUIMarkerIcon(selectedMountPoint, part);
 
-        if (mountPointTransform == null)
-        {
-            Debug.LogWarning($"飞船实例中未找到挂载点子物体：{selectedMountPoint.pointName}");
-            return;
-        }
-
-        // 3. 实例化配件到挂载点下
-        GameObject newPartInstance = Instantiate(part.partPrefab, mountPointTransform);
-        newPartInstance.name = $"Mounted_{part.partName}";
-        
-        // 4. 配件的本地位置/旋转设为0（父物体已经是目标挂载点）
-        newPartInstance.transform.localPosition = Vector3.zero;
-        newPartInstance.transform.localRotation = Quaternion.identity; // 使用 quaternion 归零
-        newPartInstance.transform.localScale = Vector3.one;
-        
-        // 5. 记录装配状态
-        mountedParts.Add(selectedMountPoint.pointName, newPartInstance);
-
-        // 6. 关闭弹窗
+        // 4. 关闭弹窗并保存
         ClosePartPopup();
+        if (currentShipData != null)
+        {
+            ShipConfigManager.SaveConfig(currentShipData.shipID, selectedMountPoint.pointName, part.partName);
+        }
 
         Debug.Log($"成功装配 {part.partName} 到 {selectedMountPoint.pointName}");
+    }
+
+    /// <summary>
+    /// 更新 UI 预览图上挂载点标记的图标（在挂载点上叠加显示配件图标）
+    /// </summary>
+    private void UpdateUIMarkerIcon(MountPointData mountPoint, SpaceshipPartData part)
+    {
+        if (currentMountPoints == null) return;
+
+        foreach (var marker in currentMountPoints)
+        {
+            // 通过名称匹配对应的挂载点 UI 物体
+            if (marker.name.Contains(mountPoint.pointName))
+            {
+                // 1. 查找是否已经存在叠加的图标物体
+                Transform partIconTF = marker.transform.Find("EquippedPartIcon");
+                GameObject partIconObj;
+                
+                if (partIconTF == null)
+                {
+                    // 2. 如果不存在，创建一个新的子物体
+                    partIconObj = new GameObject("EquippedPartIcon");
+                    partIconObj.transform.SetParent(marker.transform);
+                    
+                    // 设置 UI 位置和缩放
+                    RectTransform rt = partIconObj.AddComponent<RectTransform>();
+                    rt.anchoredPosition = Vector2.zero;
+                    rt.localScale = Vector3.one;
+                    // 默认填满父物体（挂载点标记）
+                    rt.anchorMin = Vector2.zero;
+                    rt.anchorMax = Vector2.one;
+                    rt.offsetMin = Vector2.zero;
+                    rt.offsetMax = Vector2.zero;
+                }
+                else
+                {
+                    partIconObj = partIconTF.gameObject;
+                }
+
+                // 3. 设置图标内容
+                Image img = partIconObj.GetComponent<Image>();
+                if (img == null)
+                {
+                    img = partIconObj.AddComponent<Image>();
+                }
+
+                img.sprite = part.partIcon;
+                img.color = Color.white;
+                img.preserveAspect = true;
+                img.raycastTarget = false; // 叠加的图标不响应点击，防止干扰挂载点按钮
+
+                Debug.Log($"[SpaceshipAssemblyUI] 已在挂载点 {mountPoint.pointName} 上叠加配件图标: {part.partName}");
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 核心逻辑：将配件实例化并挂载到目标物体的对应挂载点下
+    /// </summary>
+    private void ApplyPartToObject(GameObject rootObject, SpaceshipPartData part, string tag)
+    {
+        // 查找目标挂载点子物体
+        Transform mountPointTransform = rootObject.transform.Find(selectedMountPoint.pointName);
+        if (mountPointTransform == null)
+        {
+            mountPointTransform = FindDeepChild(rootObject.transform, selectedMountPoint.pointName);
+        }
+
+        if (mountPointTransform != null)
+        {
+            // 清理该挂载点下已有的旧配件
+            ClearAllChild(mountPointTransform);
+
+            // 实例化新配件
+            GameObject newPartInstance = Instantiate(part.partPrefab, mountPointTransform);
+            newPartInstance.name = $"Mounted_{part.partName}_{tag}";
+            
+            // 重置位置、旋转、缩放
+            newPartInstance.transform.localPosition = Vector3.zero;
+            newPartInstance.transform.localRotation = Quaternion.identity;
+            newPartInstance.transform.localScale = Vector3.one;
+
+            // 如果是 UI 预览（可能需要调整 Layer 或 渲染顺序）
+            if (tag == "Preview")
+            {
+                // 这里可以根据需要调整
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"[{tag}] 未在 {rootObject.name} 下找到挂载点：{selectedMountPoint.pointName}");
+        }
     }
 
     /// <summary>
@@ -648,22 +794,34 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     /// </summary>
     private void CreateEmptyTip(Transform parent, string tipText)
     {
+        if (parent == null) return;
+
         GameObject emptyTip = new GameObject("EmptyTip");
         emptyTip.transform.SetParent(parent);
         emptyTip.transform.localScale = Vector3.one;
 
-        TMP_Text text = emptyTip.AddComponent<TMP_Text>();
+        // TMP_Text 是抽象类，必须添加 TextMeshProUGUI
+        TMP_Text text = emptyTip.AddComponent<TextMeshProUGUI>();
         text.text = tipText;
         text.alignment = TextAlignmentOptions.Center;
         text.fontSize = 14;
         text.color = Color.gray;
+        
+        // 如果配置了字体，则应用
+        if (defaultFont != null)
+        {
+            text.font = defaultFont;
+        }
 
         // 适配布局
         RectTransform rt = emptyTip.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0, 0);
-        rt.anchorMax = new Vector2(1, 1);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
+        if (rt != null)
+        {
+            rt.anchorMin = new Vector2(0, 0);
+            rt.anchorMax = new Vector2(1, 1);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
     }
 
     /// <summary>

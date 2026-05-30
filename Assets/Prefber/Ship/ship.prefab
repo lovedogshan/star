@@ -571,20 +571,19 @@ MonoBehaviour:
   - pointName: "\u5DE6\u56FA\u5B9A\u70AE\u4F4D"
     mountPointTransform: {fileID: 5136347428123793525}
     pointType: 0
-    compatibleParts: 
+    compatibleParts: 00000000
     maxSupportSize: 0
     maxWeaponSize: 0
     previewAnchorPos: {x: 0.48, y: 0.88}
   - pointName: "\u53F3\u56FA\u5B9A\u70AE\u4F4D"
     mountPointTransform: {fileID: 3462449516073156089}
     pointType: 0
-    compatibleParts: 
+    compatibleParts: 00000000
     maxSupportSize: 0
     maxWeaponSize: 0
     previewAnchorPos: {x: 0.55, y: 0.88}
   previewLocalMin: {x: 0, y: 0}
   previewLocalMax: {x: 0, y: 0}
-  UIpreview: {fileID: 4520073791376386092, guid: 377de90122985c74a92014b30f6c9424, type: 3}
 --- !u!1 &5527609402507840499
 GameObject:
   m_ObjectHideFlags: 0

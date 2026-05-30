@@ -25,7 +25,36 @@ public class SpaceshipPartItemUI : MonoBehaviour
         partData = data;
 
         // 设置基础信息
-        if (partIconImage != null) partIconImage.sprite = data.partIcon;
+        if (partIconImage != null)
+        {
+            if (data.partIcon != null)
+            {
+                // 关键：这里直接给 Image 组件的 sprite 属性赋值
+                // 等同于在 Inspector 中设置 "Source Image"
+                partIconImage.sprite = data.partIcon;
+                
+                // 确保 Image 颜色不透明
+                partIconImage.color = Color.white;
+
+                // 可选：保持宽高比
+                partIconImage.preserveAspect = true;
+                
+                // 打印成功日志
+                Debug.Log($"[ItemUI] 已将图片 {data.partIcon.name} 设置到 Source Image");
+            }
+            else
+            {
+                Debug.LogWarning($"[ItemUI] 配件数据 {data.partName} 中 partIcon 为空！无法设置 Source Image");
+                // 如果数据中没有图标，将Image设为透明或使用默认图标，避免显示白块
+                partIconImage.sprite = null;
+                partIconImage.color = Color.clear;
+            }
+        }
+        else
+        {
+             Debug.LogError($"[ItemUI] partIconImage 引用未赋值！请检查 Prefab 上是否拖入了 Image 组件");
+        }
+        
         if (partNameText != null) partNameText.text = data.partName;
 
         // 设置属性文本（根据类型显示不同属性）

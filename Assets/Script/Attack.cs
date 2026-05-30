@@ -12,7 +12,7 @@ public class Attack : MonoBehaviour
     public Transform firePoint;
     public int Ranger;
     public bool npc = false;
-    private float attackTimer;//���ù���Ƶ��
+    private float attackTimer;//���ù���Ƶ��
     // Start is called before the first frame update
     void Start()
     {
@@ -22,20 +22,20 @@ public class Attack : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // 如果装配界面开启，禁止开火逻辑
+        if (SpaceshipAssemblyUI.IsUIOpen) return;
+
         if (npc == false)
         {
             if (Input.GetMouseButton(0))
             {
                 attack();
-
-
             }
         }
         else
         {
             Npcfire();
         }
-        disappear();
     }
     void fire()
     {

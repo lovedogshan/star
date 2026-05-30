@@ -10,35 +10,81 @@ using UnityEngine;
 public class ShipMove : MonoBehaviour
 {
     // Start is called before the first frame update
-    public float speed;  // Square ÒÆ¶¯ËÙ¶È
+    public float speed;  // Square ï¿½Æ¶ï¿½ï¿½Ù¶ï¿½
 
-    public float acceleration; // ¼ÓËÙ¶È
+    public float acceleration; // ï¿½ï¿½ï¿½Ù¶ï¿½
     public float degreespeed;
 
 
-    private Vector3 targetPosition; // Ä¿±êÎ»ÖÃ
-    private float currentSpeed; // ÎïÌåµ±Ç°ËÙ¶È  
+    private Vector3 targetPosition; // Ä¿ï¿½ï¿½Î»ï¿½ï¿½
+    private float currentSpeed; // ï¿½ï¿½ï¿½åµ±Ç°ï¿½Ù¶ï¿½  
     private Vector2 currentVector;
     private bool cruiseMode = true;
     private bool cruiseTarget = false;
- 
+    private Rigidbody2D rb;
 
+    void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        // å»ºè®®è®¾ç½® Rigidbody2D çš„ Gravity Scale ä¸º 0ï¼Œä¸” Collision Detection ä¸º Continuous
+        if (rb != null)
+        {
+            rb.gravityScale = 0;
+            rb.angularDrag = 0; // ç¦ç”¨ç‰©ç†é˜»åŠ›ï¼Œç”±ä»£ç æ§åˆ¶è½¬å‘
+        }
+    }
 
+    void Update()
+    {
+        // å¦‚æœè£…é…ç•Œé¢å¼€å¯ï¼Œç¦æ­¢ç§»åŠ¨å’Œè½¬å‘ï¼Œå¹¶ä¸”é‡ç½®é€Ÿåº¦é˜²æ­¢æƒ¯æ€§
+        if (SpaceshipAssemblyUI.IsUIOpen) 
+        {
+            currentSpeed = 0;
+            currentVector = Vector2.zero;
+            if (rb != null) rb.velocity = Vector2.zero;
+            targetPosition = transform.position;
+            return;
+        }
 
+        // å¤„ç†è¾“å…¥æ¨¡å¼åˆ‡æ¢å’Œç›®æ ‡ç‚¹æ›´æ–°
+        changemode();
+    }
 
+    void FixedUpdate()
+    {
+        // ç‰©ç†é€»è¾‘ç§»åŠ¨åˆ° FixedUpdate æ‰§è¡Œï¼Œé˜²æ­¢é¢¤æŠ–
+        if (SpaceshipAssemblyUI.IsUIOpen) return;
 
+        if (cruiseMode == true)
+        {
+            if (cruiseTarget == true)
+            {
+                MoveToTarget();
+            }
+            else
+            {
+                rb.velocity = Vector2.zero;
+            }
+        }
+        else
+        {
+            Battlemode();
+        }
+    }
 
     void changemode()
     {
-       
+        // ç¡®ä¿ç‚¹å‡»ä¸æ˜¯åœ¨ UI ä¸Š
+        bool isPointerOverUI = UnityEngine.EventSystems.EventSystem.current != null && 
+                               UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
 
-        if (Input.GetKeyDown(KeyCode.E))
+        if (Input.GetKeyDown(KeyCode.X))
         {
             cruiseMode = !cruiseMode;
             cruiseTarget = false;
 
         }
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetMouseButtonDown(1) && !isPointerOverUI)
         {
             cruiseMode = true; 
 
@@ -49,12 +95,12 @@ public class ShipMove : MonoBehaviour
             
             if(cruiseTarget == true)
             {
-                if (Input.GetMouseButtonDown(1))
+                if (Input.GetMouseButtonDown(1) && !isPointerOverUI)
                 {
-                    targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // »ñÈ¡Êó±êµã»÷Î»ÖÃ
+                    targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 
                 }
-                MoveToTarget();
+                // MoveToTarget(); // ç§»åˆ° Update ç»Ÿä¸€è°ƒç”¨
             }
            
 
@@ -65,101 +111,85 @@ public class ShipMove : MonoBehaviour
         }
         else
         {
-            targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            Battlemode();
+            // åœ¨æˆ˜æ–—æ¨¡å¼ä¸‹ï¼Œå¦‚æœæ²¡æœ‰å³é”®ç‚¹å‡»ï¼ŒtargetPosition åº”è¯¥è·Ÿéšé¼ æ ‡ä½ç½®ï¼ˆè¿™æ ·é£èˆ¹æ‰èƒ½å®æ—¶è½¬å‘é¼ æ ‡ï¼‰
+            // é™¤éä½ æƒ³è®©å®ƒåƒ cruiseMode ä¸€æ ·åªæœ‰ç‚¹å‡»æ‰æ›´æ–°ç›®æ ‡
+            // ä¹‹å‰çš„é€»è¾‘æ˜¯ï¼š
+             if (Input.GetMouseButtonDown(1) && !isPointerOverUI)
+            {
+                targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            }
+            else if (!isPointerOverUI) // æ–°å¢ï¼šå¦‚æœä¸æ˜¯å³é”®ç‚¹å‡»ï¼Œä¹Ÿå®æ—¶æ›´æ–°æœå‘ç›®æ ‡ä¸ºé¼ æ ‡ä½ç½®ï¼Ÿ
+            {
+                // æ³¨æ„ï¼šå¦‚æœ Battlemode çš„è®¾è®¡æ˜¯â€œå³é”®ç‚¹å‡»ç§»åŠ¨ï¼Œé”®ç›˜æ§åˆ¶ç§»åŠ¨ï¼Œé¼ æ ‡æ§åˆ¶æœå‘â€
+                // é‚£ä¹ˆè¿™é‡Œå¯èƒ½éœ€è¦ä¸€ç›´æ›´æ–° targetPosition ä¸ºé¼ æ ‡ä½ç½®
+                targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            }
         }
 
     }
     void Battlemode()
     {
-       
-        Vector2 direction = (targetPosition - transform.position).normalized; // ¼ÆËãÒÆ¶¯·½Ïò
+        Vector2 direction = (targetPosition - transform.position).normalized; 
         float zhuanxiang = Mathf.Atan2(-direction.x, direction.y) * Mathf.Rad2Deg;
-        Vector3 eulerAngles = transform.eulerAngles;
-        eulerAngles.z = Mathf.MoveTowardsAngle(eulerAngles.z, zhuanxiang, degreespeed * Time.deltaTime);
-        transform.eulerAngles = eulerAngles;//×ªÏò´úÂë£¬¿ÉÒÔÈÃ·É´¬³¯Êó±ê·½ÏòĞı×ª
+        
+        // ä½¿ç”¨åˆšä½“æ—‹è½¬ä¿æŒç‰©ç†åŒæ­¥
+        float newRotation = Mathf.MoveTowardsAngle(rb.rotation, zhuanxiang, degreespeed * Time.deltaTime);
+        rb.rotation = newRotation;
 
-        //»ñÈ¡ÊäÈëÖµ
+        // è·å–è¾“å…¥å€¼
         float Left = Input.GetAxis("Horizontal");
         float Forward = Input.GetAxis("Vertical");
-        //¼ÆËãÒÆ¶¯µÄ·½Ïò
         Vector2 inputDirection = new Vector2(Left, Forward).normalized;
 
         if (inputDirection.magnitude > 0.5f)
         {
             currentVector += inputDirection * acceleration * Time.deltaTime;
-            //½«currentSpeedµÄÄ£³¤ÏŞÖÆÔÚspeedÒÔÏÂ
-            //Ä£³¤ÊÇÏòÁ¿µÄ³¤¶È²»»áÎª¸ºÊı
             currentVector = Vector2.ClampMagnitude(currentVector, speed);
         }
         else
         {
-            //µ±ÊäÈëÖµ¹ıĞ¡Ê±£¬Ö´ĞĞ¼õËÙÂß¼­
             currentVector -= currentVector.normalized * acceleration * Time.deltaTime;
-
-            //µ±ËÙ¶ÈĞ¡ÓÚÒ»¸öºÜĞ¡µÄÖµÊ±£¬½«ËÙ¶È¹éÁã
             if (currentVector.magnitude < 0.1f)
             {
                 currentVector = Vector2.zero;
             }
         }
-        //ÒÆ¶¯Âß¼­,ÒÑ×ÔÉí×ø±êÏµÎª»ù×¼
-        transform.Translate(currentVector * Time.deltaTime, Space.Self);
-
-
-
-
-
-
-    }
-    void Update()
-    {
-        changemode();
- 
         
+        // å…³é”®ä¿®æ”¹ï¼šå°†æœ¬åœ°åæ ‡ç³»çš„é€Ÿåº¦è½¬æ¢ä¸ºä¸–ç•Œåæ ‡ç³»é€Ÿåº¦èµ‹å€¼ç»™åˆšä½“
+        // è¿™æ ·å¯ä»¥æ”¯æŒç¢°æ’ï¼Œå› ä¸ºç‰©ç†å¼•æ“ä¼šå¤„ç†åˆšä½“çš„ velocity
+        rb.velocity = transform.TransformDirection(currentVector);
     }
 
     void MoveToTarget()
     {
-
-
-        float Distance = Vector2.Distance(transform.position, targetPosition);//¼ÆËã×ÔÉíÎ»ÖÃµ½Êó±êµã»÷Î»ÖÃµÄ¾àÀë
-        Vector2 direction = (targetPosition - transform.position).normalized; // ¼ÆËãÒÆ¶¯·½Ïò
-                                                                              // ¼ÆËãµ±ËÙ¶ÈÒÔµÈÍ¬ÓÚ¼ÓËÙ¶ÈµÄ¼õËÙ¶È¼õËÙµ½0Ê±ËùĞèµÄ¾àÀë  
+        float Distance = Vector2.Distance(transform.position, targetPosition);
+        Vector2 direction = (targetPosition - transform.position).normalized; 
         float decelerationDistance = currentSpeed * currentSpeed / (2f * acceleration);
-        if (Distance > 0.1f) // µ± Square Î´µ½´ïÄ¿±êÎ»ÖÃÊ±
+        
+        if (Distance > 0.1f) 
         {
-
             if (Distance <= decelerationDistance)
             {
-                // Ê¹ÓÃ¼õËÙÂß¼­  
                 currentSpeed -= acceleration * Time.deltaTime;
-                // È·±£ËÙ¶È²»»á±äÎª¸ºÊı  
                 currentSpeed = Mathf.Max(currentSpeed, 0f);
             }
             else
             {
-                // Èç¹û¾àÀë´óÓÚ¼õËÙ¾àÀë£¬Ôò¼ÌĞø¼ÓËÙ  
                 currentSpeed += acceleration * Time.deltaTime;
-                // ÏŞÖÆËÙ¶È²»³¬¹ı×î´óËÙ¶È  
                 currentSpeed = Mathf.Min(currentSpeed, speed);
             }
-            Vector3 movement = new Vector3(direction.x * currentSpeed * Time.deltaTime, direction.y * currentSpeed * Time.deltaTime, 0);
-            transform.position += movement;
-
-
+            // ä½¿ç”¨åˆšä½“é€Ÿåº¦ä»£æ›¿ç›´æ¥æ“ä½œ Transform
+            rb.velocity = direction * currentSpeed;
         }
         else
         {
             currentSpeed = 0;
+            rb.velocity = Vector2.zero;
         }
+
         float zhuanxiang = Mathf.Atan2(-direction.x, direction.y) * Mathf.Rad2Deg;
-        Vector3 eulerAngles = transform.eulerAngles;
-        eulerAngles.z = Mathf.MoveTowardsAngle(eulerAngles.z, zhuanxiang, degreespeed * Time.deltaTime);
-        transform.eulerAngles = eulerAngles;
-       // Debug.Log(currentSpeed);
-
-
+        float newRotation = Mathf.MoveTowardsAngle(rb.rotation, zhuanxiang, degreespeed * Time.deltaTime);
+        rb.rotation = newRotation;
     }
 }
     

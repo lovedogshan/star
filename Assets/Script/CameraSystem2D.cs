@@ -127,6 +127,13 @@ namespace CodeMonkey.CameraSystem
 
         private void HandleCameraZoom_OrthographicSize()
         {
+            // 如果鼠标悬停在 UI 上，则不处理缩放
+            if (UnityEngine.EventSystems.EventSystem.current != null && 
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
             if (Input.mouseScrollDelta.y > 0)
             {
                 targetOrthographicSize -= 5;
