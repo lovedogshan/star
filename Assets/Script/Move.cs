@@ -1,72 +1,73 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.AI;
 
 public class Move : MonoBehaviour
 {
-    // Start is called before the first frame update
+    [Header("移动参数")]
+    public float moveSpeed = 4f;
 
-    private Rigidbody2D rb; // Rigidbody2D ���
-    private Vector2 targetPosition; // Ŀ��λ��
-    public NavMeshAgent NavMeshAgent;
-    private bool isopen;
+    [Header("背包")]
     public GameObject cargo;
-    private int shuliang;
 
-    void Start()
+    private Rigidbody2D rb;
+    private Vector2 moveInput;
+    private bool isopen;
+
+    private void Awake()
     {
-        rb = GetComponent<Rigidbody2D>(); // ��ȡ Rigidbody2D ���
-        NavMeshAgent.updateRotation = false;
-        NavMeshAgent.updateUpAxis = false;
-
-    }
-
-    void Update()
-    {
-        // 如果装配界面开启，禁止移动和背包逻辑
-        if (SpaceshipAssemblyUI.IsUIOpen) return;
-
-        // 如果点击在 UI 上，不处理鼠标点击
-        bool isPointerOverUI = UnityEngine.EventSystems.EventSystem.current != null && 
-                               UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
-
-        if (Input.GetMouseButtonDown(1) && !isPointerOverUI)
+        rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
         {
-            Debug.Log("Pressed right-click.");
-            targetPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // ��ȡ�����λ��
-
+            rb.gravityScale = 0f;
+            rb.freezeRotation = true;
+            rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
         }
-        OpenMyBag();
-        NavMeshAgent.SetDestination(targetPosition);
-        Vector3 position = NavMeshAgent.transform.position;
-        position.z = 0f;
-        NavMeshAgent.transform.position = position;
-
     }
-    void OpenMyBag()
+
+    private void Update()
     {
-        if(Input.GetKeyDown(KeyCode.I))
+        bool disableMove = SpaceshipAssemblyUI.IsUIOpen ||
+                           (GameControlManager.Instance != null &&
+                            GameControlManager.Instance.CurrentMode == GameControlManager.ControlMode.Piloting);
+
+        if (disableMove)
+        {
+            moveInput = Vector2.zero;
+            if (rb != null) rb.velocity = Vector2.zero;
+            return;
+        }
+
+        moveInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).normalized;
+        OpenMyBag();
+    }
+
+    private void FixedUpdate()
+    {
+        if (rb == null) return;
+
+        Vector2 targetPosition = rb.position + moveInput * moveSpeed * Time.fixedDeltaTime;
+        rb.MovePosition(targetPosition);
+    }
+
+    private void OpenMyBag()
+    {
+        if (Input.GetKeyDown(KeyCode.I) && cargo != null)
         {
             isopen = !isopen;
             cargo.SetActive(isopen);
         }
     }
-    void OnCollisionEnter2D(Collision2D collision)
+
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-
-        if (collision.gameObject.tag == "Home")
+        if (collision.gameObject.CompareTag("Home"))
         {
-            
-            Debug.Log("��ȡһֻС��");
+            Debug.Log("玩家碰到了 Home");
         }
 
-        if (collision.gameObject.tag == "Planet" )
+        if (collision.gameObject.CompareTag("Planet"))
         {
-            Debug.Log("��С��������ȡ10000ŷԪ");
+            Debug.Log("玩家碰到了 Planet");
         }
-
     }
 }
-

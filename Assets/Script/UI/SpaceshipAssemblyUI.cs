@@ -107,8 +107,47 @@ public class SpaceshipAssemblyUI : MonoBehaviour
         // 监听按键按下（例如 E 键）
         if (Input.GetKeyDown(toggleKey))
         {
+            if (!IsUIOpen && ShouldDeferToggleToWorldInteractable())
+            {
+                return;
+            }
+
             ToggleAssemblyUI();
         }
+    }
+
+    private bool ShouldDeferToggleToWorldInteractable()
+    {
+        if (InteractionInputGuard.WasConsumedThisFrame())
+        {
+            return true;
+        }
+
+        if (GameControlManager.Instance != null &&
+            GameControlManager.Instance.CurrentMode == GameControlManager.ControlMode.Piloting)
+        {
+            return true;
+        }
+
+        PlayerInteractor playerInteractor = FindObjectOfType<PlayerInteractor>();
+        if (playerInteractor == null)
+        {
+            return false;
+        }
+
+        if (playerInteractor.HasNearbyInteractable())
+        {
+            return true;
+        }
+
+        PilotSeatInteract pilotSeat = FindObjectOfType<PilotSeatInteract>();
+        if (pilotSeat == null)
+        {
+            return false;
+        }
+
+        float distance = Vector2.Distance(playerInteractor.transform.position, pilotSeat.transform.position);
+        return distance <= playerInteractor.interactRadius + 0.5f;
     }
 
     /// <summary>
@@ -834,5 +873,3 @@ public class SpaceshipAssemblyUI : MonoBehaviour
     }
     #endregion
 }
-
-

@@ -23,6 +23,10 @@ public class TurretFire : MonoBehaviour
     public List<string> enemyTags = new List<string> {};
     public Transform Aimline;
     private GameObject parentObject;
+    private Quaternion initialBarrelLocalRotation;
+    private bool isDocked;
+
+    public bool IsDocked => isDocked;
     private float attackTimer;//���ù���Ƶ��
 
     // Start is called before the first frame update
@@ -44,7 +48,8 @@ public class TurretFire : MonoBehaviour
     }
     private void Awake()
     {
-        parentObject = transform.parent.gameObject;
+        parentObject = transform.parent != null ? transform.parent.gameObject : gameObject;
+        initialBarrelLocalRotation = barrel != null ? barrel.localRotation : Quaternion.identity;
 
 
         // �����������������ƣ���ѡ��  
@@ -71,6 +76,12 @@ public class TurretFire : MonoBehaviour
     }
     void FixedUpdate()
     {
+        if (isDocked)
+        {
+            ReturnBarrelToInitialPosition();
+            attackTimer = 0f;
+            return;
+        }
         //  Debug.Log(parentObject);
         float distance = Vector2.Distance(GameObject.Find("Enemy").transform.position, transform.position);
         if (distance <= range)//����͵��˵ľ���������ڣ��Ϳ���
@@ -118,6 +129,23 @@ public class TurretFire : MonoBehaviour
         }
 
 
+    }
+
+    public void SetDocked(bool docked)
+    {
+        isDocked = docked;
+        attackTimer = 0f;
+    }
+
+    private void ReturnBarrelToInitialPosition()
+    {
+        if (barrel == null) return;
+
+        barrel.localRotation = Quaternion.RotateTowards(
+            barrel.localRotation,
+            initialBarrelLocalRotation,
+            Mathf.Abs(degreespeed) * Time.fixedDeltaTime
+        );
     }
 
     void Fire()

@@ -1,29 +1,62 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
 
 namespace CodeMonkey.CameraSystem
 {
-
     public class CameraSystem2D : MonoBehaviour
     {
-
         [SerializeField] private CinemachineVirtualCamera cinemachineVirtualCamera;
         [SerializeField] private bool useEdgeScrolling = false;
         [SerializeField] private bool useDragPan = false;
-        [SerializeField] private float orthographicSizeMin = 10;
-        [SerializeField] private float orthographicSizeMax = 50;
+        [SerializeField] private float orthographicSizeMin = 10f;
+        [SerializeField] private float orthographicSizeMax = 50f;
+
+        [Header("Control Mode Follow")]
+        [SerializeField] private bool followControlMode = true;
+        [SerializeField] private Transform playerTarget;
+        [SerializeField] private Transform pilotingTarget;
+        [SerializeField] private float onFootOrthographicSize = 18f;
+        [SerializeField] private float pilotingOrthographicSize = 50f;
+        [SerializeField] private float zoomSpeed = 10f;
+        [SerializeField] private float zoomStep = 5f;
 
         private bool dragPanMoveActive;
         private Vector2 lastMousePosition;
-        private float targetOrthographicSize = 50;
+        private float targetOrthographicSize = 50f;
+        private Transform defaultTarget;
+        private Transform activeTarget;
+        private ShipVisualController visualController;
+        private bool lastPilotingState;
 
+        private void Awake()
+        {
+            if (cinemachineVirtualCamera == null)
+            {
+                cinemachineVirtualCamera = GetComponentInChildren<CinemachineVirtualCamera>();
+            }
 
+            if (cinemachineVirtualCamera != null)
+            {
+                defaultTarget = cinemachineVirtualCamera.Follow;
+                activeTarget = cinemachineVirtualCamera.Follow;
+                targetOrthographicSize = cinemachineVirtualCamera.m_Lens.OrthographicSize;
+            }
+
+            playerTarget = ResolvePlayerTarget();
+            pilotingTarget = ResolvePilotingTarget();
+            visualController = ResolveShipVisualController();
+
+            bool isPiloting = IsPiloting();
+            lastPilotingState = isPiloting;
+            ApplyControlModeCamera(isPiloting, true);
+        }
 
         private void Update()
         {
-           // HandleCameraMovement();
+            if (followControlMode)
+            {
+                UpdateControlModeCamera();
+            }
 
             if (useEdgeScrolling)
             {
@@ -35,29 +68,12 @@ namespace CodeMonkey.CameraSystem
                 HandleCameraMovementDragPan();
             }
 
-            //HandleCameraRotation();
-
-            HandleCameraZoom_OrthographicSize();
+            HandleCameraZoomOrthographicSize();
         }
-
-       // private void HandleCameraMovement()
-       // {
-         //   Vector3 inputDir = new Vector3(0, 0, 0);
-
-        //    if (Input.GetKey(KeyCode.W)) inputDir.z = +1f;
-         //   if (Input.GetKey(KeyCode.S)) inputDir.z = -1f;
-          //  if (Input.GetKey(KeyCode.A)) inputDir.x = -1f;
-          //  if (Input.GetKey(KeyCode.D)) inputDir.x = +1f;
-
-            //Vector3 moveDir = transform.forward * inputDir.z + transform.right * inputDir.x;
-
-           // float moveSpeed = 50f;
-           // transform.position += moveDir * moveSpeed * Time.deltaTime;
-        //}
 
         private void HandleCameraMovementEdgeScrolling()
         {
-            Vector3 inputDir = new Vector3(0, 0, 0);
+            Vector3 inputDir = Vector3.zero;
 
             int edgeScrollSize = 20;
 
@@ -71,11 +87,11 @@ namespace CodeMonkey.CameraSystem
             }
             if (Input.mousePosition.x > Screen.width - edgeScrollSize)
             {
-                inputDir.x = +1f;
+                inputDir.x = 1f;
             }
             if (Input.mousePosition.y > Screen.height - edgeScrollSize)
             {
-                inputDir.z = +1f;
+                inputDir.z = 1f;
             }
 
             Vector3 moveDir = transform.forward * inputDir.z + transform.right * inputDir.x;
@@ -86,7 +102,7 @@ namespace CodeMonkey.CameraSystem
 
         private void HandleCameraMovementDragPan()
         {
-            Vector3 inputDir = new Vector3(0, 0, 0);
+            Vector3 inputDir = Vector3.zero;
 
             if (Input.GetMouseButtonDown(1))
             {
@@ -115,40 +131,206 @@ namespace CodeMonkey.CameraSystem
             transform.position += moveDir * moveSpeed * Time.deltaTime;
         }
 
-        //private void HandleCameraRotation()
-        //{
-           // float rotateDir = 0f;
-            //if (Input.GetKey(KeyCode.Q)) rotateDir = +1f;
-           // if (Input.GetKey(KeyCode.E)) rotateDir = -1f;
-
-           // float rotateSpeed = 100f;
-           // transform.eulerAngles += new Vector3(0, rotateDir * rotateSpeed * Time.deltaTime, 0);
-       //}
-
-        private void HandleCameraZoom_OrthographicSize()
+        private void HandleCameraZoomOrthographicSize()
         {
-            // 如果鼠标悬停在 UI 上，则不处理缩放
-            if (UnityEngine.EventSystems.EventSystem.current != null && 
+            if (UnityEngine.EventSystems.EventSystem.current != null &&
                 UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
             {
+                LerpCameraZoom();
                 return;
             }
 
             if (Input.mouseScrollDelta.y > 0)
             {
-                targetOrthographicSize -= 5;
+                targetOrthographicSize -= zoomStep;
             }
             if (Input.mouseScrollDelta.y < 0)
             {
-                targetOrthographicSize += 5;
+                targetOrthographicSize += zoomStep;
             }
 
             targetOrthographicSize = Mathf.Clamp(targetOrthographicSize, orthographicSizeMin, orthographicSizeMax);
 
-            float zoomSpeed = 10f;
-            cinemachineVirtualCamera.m_Lens.OrthographicSize =Mathf.Lerp(cinemachineVirtualCamera.m_Lens.OrthographicSize, targetOrthographicSize, Time.deltaTime * zoomSpeed);
+            LerpCameraZoom();
         }
 
-    }
+        private void LerpCameraZoom()
+        {
+            if (cinemachineVirtualCamera == null) return;
 
+            cinemachineVirtualCamera.m_Lens.OrthographicSize = Mathf.Lerp(
+                cinemachineVirtualCamera.m_Lens.OrthographicSize,
+                targetOrthographicSize,
+                Time.deltaTime * zoomSpeed
+            );
+        }
+
+        private void UpdateControlModeCamera()
+        {
+            bool isPiloting = IsPiloting();
+
+            if (isPiloting != lastPilotingState)
+            {
+                ApplyControlModeCamera(isPiloting, false);
+                lastPilotingState = isPiloting;
+                return;
+            }
+
+            Transform desiredTarget = isPiloting ? ResolvePilotingTarget() : ResolvePlayerTarget();
+            if (desiredTarget != null && desiredTarget != activeTarget)
+            {
+                ApplyFollowTarget(desiredTarget);
+            }
+        }
+
+        private void ApplyControlModeCamera(bool isPiloting, bool instant)
+        {
+            Transform desiredTarget = isPiloting ? ResolvePilotingTarget() : ResolvePlayerTarget();
+            ApplyFollowTarget(desiredTarget);
+
+            float desiredSize = isPiloting ? pilotingOrthographicSize : onFootOrthographicSize;
+            targetOrthographicSize = Mathf.Clamp(desiredSize, orthographicSizeMin, orthographicSizeMax);
+
+            if (instant && cinemachineVirtualCamera != null)
+            {
+                cinemachineVirtualCamera.m_Lens.OrthographicSize = targetOrthographicSize;
+            }
+        }
+
+        private void ApplyFollowTarget(Transform target)
+        {
+            if (target == null || cinemachineVirtualCamera == null) return;
+
+            activeTarget = target;
+            cinemachineVirtualCamera.Follow = target;
+            cinemachineVirtualCamera.LookAt = target;
+        }
+
+        private bool IsPiloting()
+        {
+            if (visualController == null)
+            {
+                visualController = ResolveShipVisualController();
+            }
+
+            if (GameControlManager.Instance != null)
+            {
+                return GameControlManager.Instance.CurrentMode == GameControlManager.ControlMode.Piloting ||
+                       (visualController != null && visualController.isPiloting);
+            }
+
+            return visualController != null && visualController.isPiloting;
+        }
+
+        private ShipVisualController ResolveShipVisualController()
+        {
+            if (visualController != null) return visualController;
+
+            if (GameControlManager.Instance != null &&
+                GameControlManager.Instance.currentShipVisualController != null)
+            {
+                visualController = GameControlManager.Instance.currentShipVisualController;
+                return visualController;
+            }
+
+            visualController = FindObjectOfType<ShipVisualController>();
+            return visualController;
+        }
+
+        private Transform ResolvePlayerTarget()
+        {
+            if (playerTarget != null) return playerTarget;
+
+            if (GameControlManager.Instance != null && GameControlManager.Instance.player != null)
+            {
+                playerTarget = GameControlManager.Instance.player.transform;
+                return playerTarget;
+            }
+
+            Move playerMove = FindObjectOfType<Move>();
+            if (playerMove != null)
+            {
+                playerTarget = playerMove.transform;
+                return playerTarget;
+            }
+
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player != null)
+            {
+                playerTarget = player.transform;
+            }
+
+            return playerTarget;
+        }
+
+        private Transform ResolvePilotingTarget()
+        {
+            if (pilotingTarget != null) return pilotingTarget;
+
+            if (GameControlManager.Instance != null)
+            {
+                if (GameControlManager.Instance.currentShip != null)
+                {
+                    pilotingTarget = GameControlManager.Instance.currentShip.transform;
+                    return pilotingTarget;
+                }
+
+                if (GameControlManager.Instance.currentShipVisualController != null)
+                {
+                    pilotingTarget = GameControlManager.Instance.currentShipVisualController.transform;
+                    return pilotingTarget;
+                }
+            }
+
+            ShipMove shipMove = FindObjectOfType<ShipMove>();
+            if (shipMove != null)
+            {
+                pilotingTarget = shipMove.transform;
+                return pilotingTarget;
+            }
+
+            pilotingTarget = defaultTarget;
+            return pilotingTarget;
+        }
+
+        public void SetPlayerTarget(Transform target)
+        {
+            playerTarget = target;
+            if (followControlMode && !IsPiloting())
+            {
+                ApplyControlModeCamera(false, false);
+            }
+        }
+
+        public void SetPilotingTarget(Transform target)
+        {
+            pilotingTarget = target;
+            if (followControlMode && IsPiloting())
+            {
+                ApplyControlModeCamera(true, false);
+            }
+        }
+
+        public void EnterPilotingView(Transform target)
+        {
+            if (target != null)
+            {
+                pilotingTarget = target;
+            }
+
+            lastPilotingState = true;
+            ApplyControlModeCamera(true, false);
+        }
+
+        public void ExitPilotingView(Transform target)
+        {
+            if (target != null)
+            {
+                playerTarget = target;
+            }
+
+            lastPilotingState = false;
+            ApplyControlModeCamera(false, false);
+        }
+    }
 }
