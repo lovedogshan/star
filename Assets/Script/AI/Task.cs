@@ -7,6 +7,8 @@ using static Constants;
 
 public class AITask
 {
+    public const int AnyRegionId = 0;
+
     public virtual int AIID { get; }
     [SerializeField]
     private List<AIAction> iActions = new List<AIAction>();
@@ -22,9 +24,19 @@ public class AITask
 
     public virtual int Level { get; set; } = 5;
 
+    public virtual int RegionId { get; set; } = AnyRegionId;
+    public virtual bool IsEmergency { get; set; }
+    public bool IsPlayerIssued { get; set; }
+    public string CommandId { get; set; }
+    public string CommandLabel { get; set; }
+    public virtual bool RequiresEva { get; set; }
+    public virtual float EstimatedWorkTime { get; set; }
+    public virtual float MaxTravelDistance { get; set; }
+    public virtual object ReservationTarget => TaskTargetEntity;
+
 
     public TaskState State { get; set; } = TaskState.unassign;
-    public AIAction CurrentAction => AIActions[ExecuteIndex];// ÊÇÒ»¸ö Êı×é»òÁĞ±íµÄË÷Òı·ÃÎÊ±í´ïÊ½£¬ÓÃÓÚ´Ó AIActions ÁĞ±íÖĞ»ñÈ¡µ±Ç°ÕıÔÚÖ´ĞĞµÄĞĞÎª£¬ExecuteIndex ÊÇÒ»¸ö ÕûÊı±äÁ¿£¬±íÊ¾µ±Ç°ÕıÔÚÖ´ĞĞµÄĞĞÎªÔÚ AIActions ÁĞ±íÖĞµÄ Ë÷Òı£¨Î»ÖÃ£©¡£
+    public AIAction CurrentAction => AIActions[ExecuteIndex];// æ˜¯ä¸€ä¸ª æ•°ç»„æˆ–åˆ—è¡¨çš„ç´¢å¼•è®¿é—®è¡¨è¾¾å¼ï¼Œç”¨äºä» AIActions åˆ—è¡¨ä¸­è·å–å½“å‰æ­£åœ¨æ‰§è¡Œçš„è¡Œä¸ºï¼ŒExecuteIndex æ˜¯ä¸€ä¸ª æ•´æ•°å˜é‡ï¼Œè¡¨ç¤ºå½“å‰æ­£åœ¨æ‰§è¡Œçš„è¡Œä¸ºåœ¨ AIActions åˆ—è¡¨ä¸­çš„ ç´¢å¼•ï¼ˆä½ç½®ï¼‰ã€‚
     public Action OnEnd;
 
 
@@ -33,9 +45,9 @@ public class AITask
         get => isStop;
         set
         {
-           if(IsStop != value)
+           if(isStop != value)
             {
-                IsStop = value;
+                isStop = value;
                 if(value)
                 {
                     Pause();
@@ -53,7 +65,7 @@ public class AITask
     public bool isKill;
 
     private bool isStop;
-    #region ¹©Íâ½ç¹ÒÔØµ÷ÓÃÊÂ¼ş
+    #region ä¾›å¤–ç•ŒæŒ‚è½½è°ƒç”¨äº‹ä»¶
 
 
 
@@ -74,8 +86,44 @@ public class AITask
 
     public virtual Vector2 TargetPoint { get; }
 
+    public virtual bool TryGetTargetPosition(out Vector3 position)
+    {
+        if (TaskTargetEntity)
+        {
+            position = TaskTargetEntity.transform.position;
+            return true;
+        }
 
-    #region ĞİÃß·ÃÎÊ£¨²âÊÔÖĞ£©
+        position = TargetPoint;
+        return TargetPoint != Vector2.zero;
+    }
+
+    public virtual void ResolveNavigationMetadata()
+    {
+        if (!TaskTargetEntity)
+        {
+            return;
+        }
+
+        NavigationRegion region = TaskTargetEntity.GetComponentInParent<NavigationRegion>();
+        if (!region)
+        {
+            return;
+        }
+
+        if (RegionId == AnyRegionId)
+        {
+            RegionId = region.RegionId;
+        }
+
+        if (region.Domain == NavigationDomain.ExteriorSpace)
+        {
+            RequiresEva = true;
+        }
+    }
+
+
+    #region ä¼‘çœ è®¿é—®ï¼ˆæµ‹è¯•ä¸­ï¼‰
     public float sleepTimer;
     private float sleepTimeMax;
     public float SleepTimeMax
@@ -109,11 +157,11 @@ public class AITask
                 case AIActionState.Success:
                     aiAciton.OnSuccess();
                     OnEnd?.Invoke();
-                    ExecuteIndex++;//¼ÌĞøÏÂ¸öÈÎÎñ
+                    ExecuteIndex++;//ç»§ç»­ä¸‹ä¸ªä»»åŠ¡
                     break;
                 case AIActionState.Fail:
                     aiAciton.OnFail();
-                    State = TaskState.abort; // ÈÎÎñ×´Ì¬ÉèÖÃÎªÖĞÖ¹
+                    State = TaskState.abort; // ä»»åŠ¡çŠ¶æ€è®¾ç½®ä¸ºä¸­æ­¢
                     return;
                 default:
                     break;
@@ -174,7 +222,7 @@ public class AITask
         }
     }
 
-    #region ¹¦ÄÜÔöÇ¿
+    #region åŠŸèƒ½å¢å¼º
 
 
 

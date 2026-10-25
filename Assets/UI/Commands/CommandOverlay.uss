@@ -1,0 +1,114 @@
+.command-root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    color: rgb(238, 241, 244);
+}
+
+.command-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 20%;
+    padding: 10px 14px;
+    flex-direction: row;
+    background-color: rgba(20, 24, 29, 0.97);
+    border-bottom-width: 1px;
+    border-bottom-color: rgb(73, 81, 91);
+}
+
+.command-main {
+    flex-grow: 1;
+    min-width: 0;
+    margin-right: 12px;
+}
+
+.command-topbar {
+    height: 46px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 12px;
+    padding-right: 6px;
+    background-color: rgb(36, 42, 49);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgb(73, 81, 91);
+}
+
+.command-title { font-size: 18px; unity-font-style: bold; }
+.command-mode-label { margin-left: 16px; color: rgb(75, 190, 157); unity-font-style: bold; }
+.command-spacer { flex-grow: 1; }
+.command-caption { color: rgb(160, 169, 179); }
+.command-worker { min-width: 110px; max-width: 180px; margin-left: 8px; unity-font-style: bold; }
+.command-secondary { width: 64px; height: 32px; background-color: rgb(53, 61, 70); color: white; border-width: 0; }
+.command-close { width: 36px; height: 32px; margin-left: 6px; font-size: 21px; background-color: transparent; color: white; border-width: 0; }
+
+.command-toolbar {
+    height: 52px;
+    flex-shrink: 0;
+    margin-top: 8px;
+    padding: 6px;
+    flex-direction: row;
+    background-color: rgb(31, 36, 42);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgb(67, 75, 84);
+}
+
+.command-tool { flex-grow: 1; min-width: 58px; height: 38px; margin-right: 5px; background-color: rgb(48, 55, 64); color: white; border-width: 0; }
+.command-tool.selected { background-color: rgb(52, 151, 128); }
+.command-danger { color: rgb(255, 194, 203); }
+.command-danger.selected { background-color: rgb(166, 57, 76); color: white; }
+
+.command-zone-button { color: rgb(180, 220, 255); }
+.zone-type-dropdown {
+    position: absolute;
+    left: 14px;
+    top: 126px;
+    width: 220px;
+    max-height: 210px;
+    padding: 8px;
+    display: none;
+    background-color: rgb(28, 34, 41);
+    border-width: 1px;
+    border-color: rgb(82, 121, 151);
+    border-radius: 4px;
+}
+.zone-type-title { height: 24px; color: rgb(180, 220, 255); unity-font-style: bold; }
+.zone-type-list { flex-grow: 1; min-height: 0; }
+.zone-type-item { height: 36px; margin-top: 4px; background-color: rgb(49, 59, 70); color: white; border-width: 0; }
+.zone-type-item:hover { background-color: rgb(61, 110, 143); }
+
+.command-task-panel {
+    width: 300px;
+    min-width: 220px;
+    height: 100%;
+    padding: 8px 10px;
+    background-color: rgb(31, 36, 42);
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgb(73, 81, 91);
+}
+
+.command-section-title { height: 26px; flex-shrink: 0; unity-font-style: bold; }
+.command-task-list { flex-grow: 1; min-height: 0; }
+.command-task-row { height: 34px; flex-shrink: 0; margin-bottom: 4px; padding-left: 8px; flex-direction: row; align-items: center; background-color: rgb(43, 49, 57); border-radius: 3px; }
+.command-task-name { flex-grow: 1; }
+.command-task-cancel { width: 34px; height: 30px; background-color: transparent; color: rgb(238, 167, 174); border-width: 0; }
+.command-empty { color: rgb(157, 166, 176); margin: 10px; }
+
+.command-feedback {
+    height: 28px;
+    flex-shrink: 0;
+    margin-top: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    unity-text-align: middle-center;
+    color: rgb(91, 205, 167);
+}
+
+.command-feedback.error { color: rgb(242, 133, 143); }

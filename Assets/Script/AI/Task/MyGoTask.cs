@@ -8,6 +8,7 @@ public class MyGoTask : AITask
     public override Constants.WorkKind WorkKind => Constants.WorkKind.None;
     public override int Level => 10;
     private Vector2 point;
+    public override Vector2 TargetPoint => point;
 
     public MyGoTask(Vector2 point)
     {

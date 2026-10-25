@@ -1,0 +1,91 @@
+:root {
+    --panel-bg: rgb(32, 36, 42);
+    --panel-raised: rgb(44, 49, 56);
+    --line: rgb(73, 80, 90);
+    --text: rgb(236, 239, 242);
+    --muted: rgb(169, 177, 187);
+    --accent: rgb(59, 154, 132);
+}
+
+.schedule-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(10, 12, 15, 0.58);
+}
+
+.schedule-window {
+    width: 860px;
+    height: 540px;
+    max-width: 94%;
+    max-height: 90%;
+    background-color: var(--panel-bg);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: var(--line);
+    border-right-color: var(--line);
+    border-top-color: var(--line);
+    border-bottom-color: var(--line);
+    border-radius: 6px;
+    color: var(--text);
+}
+
+.window-header {
+    height: 54px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 18px;
+    padding-right: 10px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--line);
+}
+
+.window-title { font-size: 20px; unity-font-style: bold; }
+.selected-person { margin-left: 18px; color: var(--muted); flex-grow: 1; }
+.icon-button { width: 36px; height: 34px; font-size: 22px; background-color: transparent; color: var(--text); border-width: 0; }
+.icon-button:hover { background-color: rgb(92, 55, 59); }
+
+.window-body { flex-grow: 1; flex-direction: row; }
+.people-pane { width: 210px; padding: 14px 10px; background-color: rgb(27, 30, 35); border-right-width: 1px; border-right-color: var(--line); }
+.section-title { height: 30px; margin-left: 8px; unity-font-style: bold; }
+.people-list { flex-grow: 1; }
+.person-button { height: 38px; margin-bottom: 4px; unity-text-align: middle-left; background-color: transparent; color: var(--text); border-width: 0; }
+.person-button:hover { background-color: var(--panel-raised); }
+.person-button.selected { background-color: var(--accent); color: white; }
+
+.content-pane { flex-grow: 1; padding: 14px; }
+.tabs { height: 42px; flex-direction: row; align-items: center; border-bottom-width: 1px; border-bottom-color: var(--line); }
+.tab-button { height: 36px; min-width: 112px; margin-right: 6px; background-color: transparent; color: var(--muted); border-width: 0; border-bottom-width: 3px; border-bottom-color: transparent; }
+.tab-button.selected { color: white; border-bottom-color: var(--accent); }
+.tab-spacer { flex-grow: 1; }
+.current-hour { color: var(--muted); }
+.page { flex-grow: 1; padding-top: 14px; }
+.page-heading { height: 32px; padding-left: 10px; padding-right: 16px; flex-direction: row; justify-content: space-between; color: var(--muted); }
+.priority-rows { flex-grow: 1; }
+.priority-row { height: 44px; flex-direction: row; align-items: center; padding-left: 12px; padding-right: 16px; margin-bottom: 3px; background-color: var(--panel-raised); border-radius: 3px; }
+.work-name { flex-grow: 1; }
+.priority-button { width: 86px; height: 32px; color: white; border-width: 0; }
+.priority-0 { background-color: rgb(93, 97, 103); }
+.priority-1 { background-color: rgb(59, 123, 158); }
+.priority-2 { background-color: rgb(59, 154, 132); }
+.priority-3 { background-color: rgb(198, 145, 57); }
+.priority-4 { background-color: rgb(190, 70, 74); }
+
+.activity-toolbar { height: 48px; flex-direction: row; align-items: center; }
+.activity-button { height: 34px; min-width: 74px; margin-right: 6px; color: white; border-width: 1px; border-color: transparent; }
+.activity-button.selected { border-color: white; border-width: 2px; }
+.schedule-hint { height: 30px; color: var(--muted); }
+.schedule-grid { flex-direction: row; flex-wrap: wrap; align-content: flex-start; }
+.schedule-slot { width: 70px; height: 64px; margin-right: 5px; margin-bottom: 5px; color: white; border-width: 1px; border-color: transparent; }
+.schedule-slot.current-slot { border-color: white; border-width: 3px; }
+.activity-anything { background-color: rgb(87, 94, 104); }
+.activity-work { background-color: rgb(47, 134, 170); }
+.activity-sleep { background-color: rgb(75, 83, 143); }
+.activity-recreation { background-color: rgb(174, 119, 49); }
+.activity-medical { background-color: rgb(164, 64, 76); }

@@ -13,17 +13,35 @@ public class AIBehavior : MonoBehaviour
 
     private List<AIAction> failActions = new List<AIAction>();
 
-    //��
-    // ժҪ:
-    //     �״εõ�������ʱ����
+    //锟斤拷
+    // 摘要:
+    //     锟阶次得碉拷锟斤拷锟斤拷锟斤拷时锟斤拷锟斤拷
     public Action<AITask> OnGetTaskEvent;
 
     public List<AITask> AITasks => iTasks;
 
     //
-    // ժҪ:
-    //     ��ǰ����ִ�еõ�����
+    // 摘要:
+    //     锟斤拷前锟斤拷锟斤拷执锟叫得碉拷锟斤拷锟斤拷
     public AITask CurrentTask { get; private set; }
+
+    public bool HasAssignedWork
+    {
+        get
+        {
+            for (int i = 0; i < AITasks.Count; i++)
+            {
+                AITask task = AITasks[i];
+                if (!(task is MyRambleTask) && task.State != Constants.TaskState.succeed &&
+                    task.State != Constants.TaskState.abort)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
 
     private void Awake()
     {
@@ -38,11 +56,13 @@ public class AIBehavior : MonoBehaviour
     }
 
     //
-    // ժҪ:
-    //     �����������
+    // 摘要:
+    //     锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟?
     private void TaskWorkFrame()
     {
-        if (AITasks.Count > 0)
+        const int maxStateTransitionsPerFrame = 16;
+        int transitions = 0;
+        while (AITasks.Count > 0 && transitions++ < maxStateTransitionsPerFrame)
         {
             if (CurrentTask != AITasks[0] && CurrentTask != null)
             {
@@ -61,38 +81,43 @@ public class AIBehavior : MonoBehaviour
             }
 
             CurrentTask = AITasks[0];
+            bool shouldWaitForNextFrame;
             try
             {
-                if (!ExecuteTask(CurrentTask))
-                {
-                    TaskWorkFrame();
-                }
+                shouldWaitForNextFrame = ExecuteTask(CurrentTask);
             }
             catch (System.Exception exception)
             {
                 CurrentTask.State = Constants.TaskState.abort;
                 Debug.LogException(exception);
+                shouldWaitForNextFrame = false;
+            }
 
+            if (shouldWaitForNextFrame)
+            {
+                return;
             }
         }
-        else
+
+        if (AITasks.Count == 0)
         {
             CurrentTask = null;
             person.ExecuteState = Constants.PersonExecuteState.Free;
+            TaskController.Instance?.RequestAssignment(person);
         }
 
 ;
     }
 
     //
-    // ժҪ:
-    //     ִֻ��һ�ξ���������߼�
+    // 摘要:
+    //     只执锟斤拷一锟轿撅拷锟斤拷锟斤拷锟斤拷锟斤拷呒锟?
     //
-    // ����:
+    // 锟斤拷锟斤拷:
     //   aiTask:
     //
-    // ���ؽ��:
-    //     �Ƿ���Ҫ������֡
+    // 锟斤拷锟截斤拷锟?
+    //     锟角凤拷锟斤拷要锟斤拷锟斤拷锟斤拷帧
     public bool ExecuteTask(AITask aiTask)
     {
         bool result = false;
@@ -136,6 +161,9 @@ public class AIBehavior : MonoBehaviour
             case Constants.TaskState.succeed:
                 AITasks.Remove(aiTask);
                 TaskController.Instance.MainTasks.Remove(aiTask);
+                JobSystem.Instance?.Unregister(aiTask);
+                ReservationManager.Instance?.ReleaseTask(aiTask);
+                TaskController.Instance.RequestAssignment(person);
                 break;
             case Constants.TaskState.abort:
                 if (aiTask.ExecuteIndex < aiTask.AIActions.Count)
@@ -159,6 +187,9 @@ public class AIBehavior : MonoBehaviour
                 aiTask.AbortSafe();
                 AITasks.Remove(aiTask);
                 TaskController.Instance.MainTasks.Remove(aiTask);
+                JobSystem.Instance?.Unregister(aiTask);
+                ReservationManager.Instance?.ReleaseTask(aiTask);
+                TaskController.Instance.RequestAssignment(person);
                 break;
         }
 
@@ -166,8 +197,8 @@ public class AIBehavior : MonoBehaviour
     }
 
     //
-    // ժҪ:
-    //     �쳣�ȴ���ʱ��
+    // 摘要:
+    //     锟届常锟饺达拷锟斤拷时锟斤拷
     private void FailWaitTiemr()
     {
         foreach (AIAction failAction in failActions)
@@ -209,14 +240,14 @@ public class AIBehavior : MonoBehaviour
     }
 
     //
-    // ժҪ:
-    //     ʧ������ȴ���ֹ
+    // 摘要:
+    //     失锟斤拷锟斤拷锟斤拷却锟斤拷锟街?
     //
-    // ����:
+    // 锟斤拷锟斤拷:
     //   action:
     //
     //   isNew:
-    //     �Ƿ��������������������ж�
+    //     锟角凤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟叫讹拷
     private void FailTaskEnd(AIAction action, bool isNew = false)
     {
         if (isNew)
@@ -234,14 +265,87 @@ public class AIBehavior : MonoBehaviour
     }
 
     //
-    // ժҪ:
-    //     ����ɫ����ʱ�����ⲽ
+    // 摘要:
+    //     锟斤拷锟斤拷色锟斤拷锟斤拷时锟斤拷锟斤拷锟解步
     private void PersonFree()
     {
-        if (person.ExecuteState == Constants.PersonExecuteState.Free && AITasks.Find((AITask x) => x is MyRambleTask) == null)
+        bool canWander = !ScheduleSystem.Instance || ScheduleSystem.Instance.AllowsIdleWander(person);
+        if (canWander && person.ExecuteState == Constants.PersonExecuteState.Free &&
+            AITasks.Find((AITask x) => x is MyRambleTask) == null)
         {
             AITasks.Add(new MyRambleTask(person));
         }
+    }
+
+    public void ApplyScheduleActivity(ScheduleActivity activity)
+    {
+        bool allowsGeneralWork = activity == ScheduleActivity.Anything || activity == ScheduleActivity.Work;
+        for (int i = AITasks.Count - 1; i >= 0; i--)
+        {
+            AITask task = AITasks[i];
+            if (task is MyRambleTask)
+            {
+                if (!ScheduleSystem.Instance || !ScheduleSystem.Instance.AllowsIdleWander(person))
+                {
+                    task.AbortSafe();
+                    AITasks.RemoveAt(i);
+                    if (CurrentTask == task)
+                    {
+                        CurrentTask = null;
+                    }
+                }
+
+                continue;
+            }
+
+            bool taskAllowed = task.IsEmergency || allowsGeneralWork ||
+                (activity == ScheduleActivity.Medical && task.WorkKind == Constants.WorkKind.MedicalCare);
+
+            if (!taskAllowed && task.State != Constants.TaskState.succeed && task.State != Constants.TaskState.abort)
+            {
+                if (task.State == Constants.TaskState.work && !task.IsStop)
+                {
+                    task.IsStop = true;
+                }
+
+                task.State = Constants.TaskState.stop;
+            }
+            else if (taskAllowed && task.State == Constants.TaskState.stop)
+            {
+                if (task.IsStop)
+                {
+                    task.IsStop = false;
+                }
+
+                task.State = Constants.TaskState.start;
+            }
+        }
+
+        if (!allowsGeneralWork && CurrentTask != null && !CurrentTask.IsEmergency)
+        {
+            person.ExecuteState = Constants.PersonExecuteState.Free;
+        }
+    }
+
+    public void CancelTask(AITask task)
+    {
+        if (task == null || !AITasks.Contains(task))
+        {
+            return;
+        }
+
+        task.AbortSafe();
+        AITasks.Remove(task);
+        TaskController.Instance.MainTasks.Remove(task);
+        JobSystem.Instance?.Unregister(task);
+        ReservationManager.Instance?.ReleaseTask(task);
+        if (CurrentTask == task)
+        {
+            CurrentTask = null;
+        }
+
+        person.ExecuteState = Constants.PersonExecuteState.Free;
+        TaskController.Instance.RequestAssignment(person);
     }
 
     public void OnDisable()

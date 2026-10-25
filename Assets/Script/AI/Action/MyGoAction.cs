@@ -5,121 +5,152 @@ using TMPro;
 using UnityEngine;
 using static Constants;
 
-// MyGoActionÀà¼Ì³Ğ×ÔAIAction£¬±íÊ¾Ò»¸öAIµÄ¡°Ç°ÍùÄ¿µÄµØ¡±¶¯×÷
+// MyGoActionç±»ç»§æ‰¿è‡ªAIActionï¼Œè¡¨ç¤ºä¸€ä¸ªAIçš„â€œå‰å¾€ç›®çš„åœ°â€åŠ¨ä½œ
 public class MyGoAction : AIAction
 {
-    // ÖØĞ´TitleÊôĞÔ£¬·µ»Ø¶¯×÷µÄ±êÌâ
-    public override string Title => "Ç°ÍùÄ¿µÄµØ";
+    // é‡å†™Titleå±æ€§ï¼Œè¿”å›åŠ¨ä½œçš„æ ‡é¢˜
+    public override string Title => "å‰å¾€ç›®çš„åœ°";
 
-    // ÖØĞ´ActionStateÊôĞÔ£¬±íÊ¾µ±Ç°¶¯×÷µÄ×´Ì¬
+    // é‡å†™ActionStateå±æ€§ï¼Œè¡¨ç¤ºå½“å‰åŠ¨ä½œçš„çŠ¶æ€
     public override AIActionState ActionState { get; set; }
 
-    // TransformÊôĞÔ£¬±íÊ¾Ä¿±êÎ»ÖÃµÄTransform×é¼ş
+    // Transformå±æ€§ï¼Œè¡¨ç¤ºç›®æ ‡ä½ç½®çš„Transformç»„ä»¶
     public Transform Transform { get; set; }
 
-    // PositionÊôĞÔ£¬±íÊ¾Ä¿±êÎ»ÖÃµÄ×ø±ê
+    // Positionå±æ€§ï¼Œè¡¨ç¤ºç›®æ ‡ä½ç½®çš„åæ ‡
     public Vector3 Position { get; set; }
 
-    // Ë½ÓĞ×Ö¶Î£¬¼ÇÂ¼ÉÏÒ»´ÎµÄÄ¿±êÎ»ÖÃ
+    // ç§æœ‰å­—æ®µï¼Œè®°å½•ä¸Šä¸€æ¬¡çš„ç›®æ ‡ä½ç½®
     private Vector2Int _oldTargetPosition;
 
-    // IsFindÊôĞÔ£¬±íÊ¾ÊÇ·ñÕÒµ½Â·¾¶
+    // IsFindå±æ€§ï¼Œè¡¨ç¤ºæ˜¯å¦æ‰¾åˆ°è·¯å¾„
     public bool IsFind { get; set; }
 
-    // IsFailWaitÊôĞÔ£¬±íÊ¾ÔÚÊ§°ÜÊ±ÊÇ·ñµÈ´ı
+    // IsFailWaitå±æ€§ï¼Œè¡¨ç¤ºåœ¨å¤±è´¥æ—¶æ˜¯å¦ç­‰å¾…
     public override bool IsFailWait { get; set; } = true;
 
-    // ¹¹Ôìº¯Êı£¬³õÊ¼»¯MyGoAction¶ÔÏó
+    // æ„é€ å‡½æ•°ï¼Œåˆå§‹åŒ–MyGoActionå¯¹è±¡
     public MyGoAction(AITask aITask, Transform transform = null, Vector3 position = default) : base(aITask)
     {
         this.Transform = transform;
         Position = position;
     }
 
-    // ÖØĞ´Execute·½·¨£¬Ö´ĞĞ¶¯×÷
+    // é‡å†™Executeæ–¹æ³•ï¼Œæ‰§è¡ŒåŠ¨ä½œ
     public override void Execute()
     {
         base.Execute();
-        Move(AITask.Person); // µ÷ÓÃMove·½·¨£¬ÈÃ½ÇÉ«ÒÆ¶¯
+        Move(AITask.Person); // è°ƒç”¨Moveæ–¹æ³•ï¼Œè®©è§’è‰²ç§»åŠ¨
     }
 
-    // Move·½·¨£¬¸ºÔğ½ÇÉ«µÄÒÆ¶¯Âß¼­
+    // Moveæ–¹æ³•ï¼Œè´Ÿè´£è§’è‰²çš„ç§»åŠ¨é€»è¾‘
     private void Move(Person person)
     {
-        // ¼ÆËã½ÇÉ«µÄ±¾µØÎ»ÖÃ£¬¿¼ÂÇÊÇ·ñÔÚ´¬ÉÏ
+        Vector3 targetPosition = Transform ? Transform.position : Position;
+        if (person.Navigation)
+        {
+            MovementStatus status = person.Navigation.Navigate(Transform, targetPosition, GetExecuteRange(AITask), AITask.RequiresEva, AITask.EstimatedWorkTime);
+            if (status == MovementStatus.Arrived)
+            {
+                ActionState = AIActionState.Success;
+                person.OldGoAction = null;
+            }
+            else if (status == MovementStatus.Failed)
+            {
+                ActionState = AIActionState.Fail;
+                person.OldGoAction = null;
+                person.TryOnNull();
+            }
+
+            return;
+        }
+
+        // è®¡ç®—è§’è‰²çš„æœ¬åœ°ä½ç½®ï¼Œè€ƒè™‘æ˜¯å¦åœ¨èˆ¹ä¸Š
         var localPosition = person.transform.localPosition ;
-        var roundLocation = BaseValueUtil.Round(localPosition); // ¶ÔÎ»ÖÃ½øĞĞËÄÉáÎåÈë
-        Vector2Int personLoction = new Vector2Int((int)roundLocation.x, (int)roundLocation.y); // »ñÈ¡½ÇÉ«µÄÕûÊı×ø±ê
+        var roundLocation = BaseValueUtil.Round(localPosition); // å¯¹ä½ç½®è¿›è¡Œå››èˆäº”å…¥
+        Vector2Int personLoction = new Vector2Int((int)roundLocation.x, (int)roundLocation.y); // è·å–è§’è‰²çš„æ•´æ•°åæ ‡
 
-        // ¼ÆËãÄ¿±êÎ»ÖÃµÄÏà¶Ô×ø±ê
-        Vector2Int taskRelposition = BaseValueUtil.RelPositionTransform(Transform.position , person.transform.localPosition);
+        // è®¡ç®—ç›®æ ‡ä½ç½®çš„ç›¸å¯¹åæ ‡
+        Vector2Int taskRelposition = BaseValueUtil.RelPositionTransform(targetPosition, person.transform.localPosition);
 
-        // Èç¹û½ÇÉ«Ã»ÓĞ¾ÉµÄGoAction£¬»òÕßÄ¿±êÎ»ÖÃ±ä»¯½Ï´ó£¬ÖØĞÂ¼ÆËãÂ·¾¶
+        // å¦‚æœè§’è‰²æ²¡æœ‰æ—§çš„GoActionï¼Œæˆ–è€…ç›®æ ‡ä½ç½®å˜åŒ–è¾ƒå¤§ï¼Œé‡æ–°è®¡ç®—è·¯å¾„
         if (!Equals(person.OldGoAction) || Vector2Int.Distance(taskRelposition, _oldTargetPosition) > 1)
         {
             person.OldGoAction = this;
             person.OldGoAction._oldTargetPosition = taskRelposition;
 
-            // µ÷ÓÃÂ·¾¶²éÕÒËã·¨£¬³¢ÊÔÕÒµ½Â·¾¶
+            // è°ƒç”¨è·¯å¾„æŸ¥æ‰¾ç®—æ³•ï¼Œå°è¯•æ‰¾åˆ°è·¯å¾„
             var isFind = person.FindPathPlus.FindingPath(personLoction, taskRelposition, out person._getPaths, GetExecuteRange(AITask));
             if (!isFind)
             {
-                // Èç¹ûÕÒ²»µ½Â·¾¶£¬ÉèÖÃ¶¯×÷ÎªÊ§°Ü×´Ì¬
+                // å¦‚æœæ‰¾ä¸åˆ°è·¯å¾„ï¼Œè®¾ç½®åŠ¨ä½œä¸ºå¤±è´¥çŠ¶æ€
                 ActionState = AIActionState.Fail;
                 _oldTargetPosition = default;
                 person.OldGoAction = null;
                 person.TryOnNull();
 
-                // ÔÚµ÷ÊÔÄ£Ê½ÏÂ»æÖÆÒ»ÌõºìÏß£¬±íÊ¾Â·¾¶²éÕÒÊ§°Ü
+                // åœ¨è°ƒè¯•æ¨¡å¼ä¸‹ç»˜åˆ¶ä¸€æ¡çº¢çº¿ï¼Œè¡¨ç¤ºè·¯å¾„æŸ¥æ‰¾å¤±è´¥
 //                var pos = (Vector2)personLoction + (Vector2)MainShip.Self.transform.position;
 //                Debug.DrawLine(pos, pos + new Vector2(0.1f, 0.1f), Color.red);
                 return;
             }
         }
 
-        // ¸üĞÂ½ÇÉ«µÄ¿ÕÏĞ¼ÆÊ±Æ÷
-        person.OnNullTimer = GameManager.Instance.gameValue.currentPeriod;
+        // æ›´æ–°è§’è‰²çš„ç©ºé—²è®¡æ—¶å™¨
+        if (GameManager.Instance && GameManager.Instance.gameValue != null)
+        {
+            person.OnNullTimer = GameManager.Instance.gameValue.currentPeriod;
+        }
 
-        // Ö´ĞĞÒÆ¶¯Âß¼­£¬Èç¹ûÒÆ¶¯Íê³É£¬ÉèÖÃ¶¯×÷Îª³É¹¦×´Ì¬
+        // æ‰§è¡Œç§»åŠ¨é€»è¾‘ï¼Œå¦‚æœç§»åŠ¨å®Œæˆï¼Œè®¾ç½®åŠ¨ä½œä¸ºæˆåŠŸçŠ¶æ€
         if (!MoveExecute(person))
         {
             ActionState = AIActionState.Success;
         }
     }
 
-    // MoveExecute·½·¨£¬¸ºÔğÖ´ĞĞ¾ßÌåµÄÒÆ¶¯Âß¼­
+    // MoveExecuteæ–¹æ³•ï¼Œè´Ÿè´£æ‰§è¡Œå…·ä½“çš„ç§»åŠ¨é€»è¾‘
     public static bool MoveExecute(Person person)
     {
         if (person._getPaths.Count > 0)
         {
-            // ¼ÆËãÒÆ¶¯·½Ïò
+            // è®¡ç®—ç§»åŠ¨æ–¹å‘
             Vector2 direction = (person._getPaths[0] - (Vector2)person.transform.localPosition).normalized;
 
-            // ¸ù¾İÒÆ¶¯·½Ïòµ÷Õû½ÇÉ«µÄ³¯Ïò
-            person.transform.localScale = new Vector3(Mathf.Sign(direction.x), 1, 1);
+            // æ ¹æ®ç§»åŠ¨æ–¹å‘è°ƒæ•´è§’è‰²çš„æœå‘
+            Vector3 scale = person.transform.localScale;
+            scale.x = Mathf.Abs(scale.x) * Mathf.Sign(direction.x);
+            person.transform.localScale = scale;
 
-            // ÒÆ¶¯½ÇÉ«
-            person.transform.Translate((person.MoveSpeed + person.MoveSpeedSlow) * Time.deltaTime * direction);
+            // Move in world space through the shared collision-safe movement path.
+            Transform parent = person.CurrentRegion ? person.CurrentRegion.CoordinateRoot : person.shiper ? person.shiper.transform : person.transform.parent;
+            Vector2Int pathPoint = person._getPaths[0];
+            Vector3 localWaypoint = new Vector3(pathPoint.x, pathPoint.y, person.transform.localPosition.z);
+            Vector2 worldTarget = parent ? parent.TransformPoint(localWaypoint) : localWaypoint;
+            Vector2 worldDirection = (worldTarget - (Vector2)person.transform.position).normalized;
+            person.TryMoveSafely(worldDirection * ((person.MoveSpeed + person.MoveSpeedSlow) * Time.deltaTime), out _);
 
-            // Èç¹û½ÇÉ«½Ó½üÄ¿±êµã£¬Ö±½ÓÉèÖÃÎ»ÖÃ²¢ÒÆ³ı¸ÃÂ·¾¶µã
-            if (Vector2.Distance(person.transform.localPosition, person._getPaths[0]) < (person.MoveSpeed + person.MoveSpeedSlow) * Time.deltaTime)
+            // Only consume a waypoint after the collision-safe move actually reached it.
+            if (Vector2.Distance(person.transform.localPosition, person._getPaths[0]) < 0.02f)
             {
-                person.transform.localPosition = new Vector3(person._getPaths[0].x, person._getPaths[0].y, person.transform.localPosition.z);
                 person._getPaths.RemoveAt(0);
             }
 
-            Debug.DrawLine(person.transform.localPosition, (Vector2)person._getPaths.Last());
+            if (person._getPaths.Count > 0)
+            {
+                Debug.DrawLine(person.transform.localPosition, (Vector2)person._getPaths.Last());
+            }
         }
 
-        // ¸üĞÂ½ÇÉ«µÄÅÜ²½×´Ì¬
+        // æ›´æ–°è§’è‰²çš„è·‘æ­¥çŠ¶æ€
         person.IsRun = person._getPaths.Count > 0;
         //person.SetRunState(person.IsRun);
 
-        // ·µ»Ø½ÇÉ«ÊÇ·ñ»¹ÔÚÒÆ¶¯
+        // è¿”å›è§’è‰²æ˜¯å¦è¿˜åœ¨ç§»åŠ¨
         return person.IsRun;
     }
 
-    // GetExecuteRange·½·¨£¬»ñÈ¡Ö´ĞĞ·¶Î§
+    // GetExecuteRangeæ–¹æ³•ï¼Œè·å–æ‰§è¡ŒèŒƒå›´
     public static int GetExecuteRange(AITask aITask, Person person = null)
     {
         if (!person)
@@ -127,41 +158,58 @@ public class MyGoAction : AIAction
             person = aITask.Person;
         }
 
-        // ¸ù¾İÈÎÎñÀàĞÍ¾ö¶¨Ê¹ÓÃ³¤·¶Î§»¹ÊÇ¶Ì·¶Î§
+        // æ ¹æ®ä»»åŠ¡ç±»å‹å†³å®šä½¿ç”¨é•¿èŒƒå›´è¿˜æ˜¯çŸ­èŒƒå›´
         int reduceRange;
         reduceRange = aITask.IsLongRange ? person._longRange : person._shortRange;
         return reduceRange;
     }
 
-    // CheckFindPath·½·¨£¬¼ì²éÊÇ·ñ¿ÉÒÔÕÒµ½Â·¾¶
+    // CheckFindPathæ–¹æ³•ï¼Œæ£€æŸ¥æ˜¯å¦å¯ä»¥æ‰¾åˆ°è·¯å¾„
     public static bool CheckFindPath(MyGoAction myGoAction)
     {
         return CheckFindPath(myGoAction.AITask.Person, myGoAction.Transform != null ? myGoAction.Transform.position : myGoAction.Position, GetExecuteRange(myGoAction.AITask));
     }
 
-    // CheckFindPath·½·¨µÄÖØÔØ£¬¼ì²é½ÇÉ«ÊÇ·ñ¿ÉÒÔÕÒµ½Â·¾¶
+    // CheckFindPathæ–¹æ³•çš„é‡è½½ï¼Œæ£€æŸ¥è§’è‰²æ˜¯å¦å¯ä»¥æ‰¾åˆ°è·¯å¾„
     public static bool CheckFindPath(Person person, Vector2 point, int range)
     {
+        if (person.Navigation)
+        {
+            return person.Navigation.CanReach(point, range);
+        }
+
         var localPosition = person.transform.localPosition;
         Vector2Int personLoction = new Vector2Int((int)localPosition.x, (int)localPosition.y);
         Vector2Int taskRelposition = BaseValueUtil.RelPositionTransform(point, person.transform.localPosition);
 
-        // µ÷ÓÃÂ·¾¶²éÕÒËã·¨£¬¼ì²éÊÇ·ñ¿ÉÒÔÕÒµ½Â·¾¶
+        // è°ƒç”¨è·¯å¾„æŸ¥æ‰¾ç®—æ³•ï¼Œæ£€æŸ¥æ˜¯å¦å¯ä»¥æ‰¾åˆ°è·¯å¾„
         return person.FindPathPlus.FindingPath(personLoction, taskRelposition, out _, range);
     }
 
-    // CheckFindPathAsync·½·¨£¬Òì²½¼ì²éÊÇ·ñ¿ÉÒÔÕÒµ½Â·¾¶
+    public override void OnFail()
+    {
+        AITask.Person?.Navigation?.Cancel();
+        base.OnFail();
+    }
+
+    public override void OnStop()
+    {
+        AITask.Person?.Navigation?.Cancel();
+        base.OnStop();
+    }
+
+    // CheckFindPathAsyncæ–¹æ³•ï¼Œå¼‚æ­¥æ£€æŸ¥æ˜¯å¦å¯ä»¥æ‰¾åˆ°è·¯å¾„
 /*    public static async System.Threading.Tasks.Task CheckFindPathAsync(Person person, Vector2 point, int range, FindPath.FindPathResult findPathResult = null)
     {
         var localPosition = person.transform.localPosition + (person.place == PersonPlace.Ship ? Vector3.zero : new Vector3(0.5f, 0.5f));
         Vector2Int personLoction = new Vector2Int((int)localPosition.x, (int)localPosition.y);
         Vector2Int taskRelposition = BaseValueUtil.RelPositionTransform(point, person.place == PersonPlace.Ship ? person.Shiper.transform.localPosition : Vector3.zero);
 
-        // Òì²½µ÷ÓÃÂ·¾¶²éÕÒËã·¨
+        // å¼‚æ­¥è°ƒç”¨è·¯å¾„æŸ¥æ‰¾ç®—æ³•
         await person.FindPathPlus.TryFind(personLoction, taskRelposition, range, findPathResult);
     }
 
-    // CheckFailRestore·½·¨£¬¼ì²éÊÇ·ñĞèÒªÔÚÊ§°ÜÊ±»Ö¸´
+    // CheckFailRestoreæ–¹æ³•ï¼Œæ£€æŸ¥æ˜¯å¦éœ€è¦åœ¨å¤±è´¥æ—¶æ¢å¤
     public override bool CheckFailRestore()
     {
         return base.CheckFailRestore() && CheckFindPath(this);

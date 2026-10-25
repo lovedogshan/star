@@ -19,7 +19,13 @@ public class FindPath
 
     public const int StackPathCountMax = 500;
 
-    public bool FindingPath(Vector2Int start, Vector2Int end, out List<Vector2Int>getPath, int spaceRange)
+    public bool FindingPath(Vector2Int start, Vector2Int end, out List<Vector2Int> getPath, int spaceRange)
+    {
+        return FindingPath(start, end, out getPath, spaceRange, null);
+    }
+
+    public bool FindingPath(Vector2Int start, Vector2Int end, out List<Vector2Int> getPath, int spaceRange,
+        ISet<Vector2Int> temporarilyBlocked)
     {
         getPath = new List<Vector2Int>();
 
@@ -61,9 +67,9 @@ public class FindPath
                 }
                 return true;
             }
-            foreach (var node in pathGrid.GetNeighor(currentNode))
+            foreach (var node in pathGrid.GetNeighor(currentNode, temporarilyBlocked))
             {
-                if (node.isCollision || closeNodes.Contains(node))
+                if (node == null || node.isCollision || closeNodes.Contains(node))
                 {
                     continue;
                 }
@@ -105,7 +111,7 @@ public class FindPath
         {
             stackPath.Clear();
             var node = endNode;
-            while (node?.Parent != startNode && node.Parent != null && stackPath.Count < StackPathCountMax)
+            while (node != null && node != startNode && stackPath.Count < StackPathCountMax)
             {
                 stackPath.Push(node);
                 node = node.Parent;

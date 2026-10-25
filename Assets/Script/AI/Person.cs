@@ -14,7 +14,44 @@ public partial class Person : Animal,IAttacker, IAttacked
 
     public MyGoAction OldGoAction { get; set; }
 
-    #region �˶�
+    public PersonNavigation Navigation { get; private set; }
+    public EvaCapability EvaCapability { get; private set; }
+    [SerializeField]
+    private PersonWorkProfile workProfile = new PersonWorkProfile();
+    [SerializeField]
+    private PersonScheduleProfile scheduleProfile = new PersonScheduleProfile();
+
+    public virtual bool CanReceiveAutomaticTask => IBehavior != null;
+
+    public PersonWorkProfile WorkProfile
+    {
+        get
+        {
+            if (workProfile == null)
+            {
+                workProfile = new PersonWorkProfile();
+            }
+
+            return workProfile;
+        }
+    }
+
+    public PersonScheduleProfile ScheduleProfile
+    {
+        get
+        {
+            if (scheduleProfile == null)
+            {
+                scheduleProfile = new PersonScheduleProfile();
+            }
+
+            return scheduleProfile;
+        }
+    }
+    public NavigationRegion CurrentRegion { get; private set; }
+    public int CurrentRegionId => CurrentRegion ? CurrentRegion.RegionId : shiper ? shiper.GetInstanceID() : AITask.AnyRegionId;
+
+    #region 锟剿讹拷
     public Constants.PersonExecuteState ExecuteState { get; set; } = Constants.PersonExecuteState.Free;
 
     public virtual bool IsLongRange { get; set; }
@@ -31,7 +68,7 @@ public partial class Person : Animal,IAttacker, IAttacked
     public List<Vector2Int> _getPaths = new List<Vector2Int>();
     #endregion
 
-    #region Ѱ·
+    #region 寻路
     public FindPath FindPathPlus { get; private set; } = new FindPath();
 
 //   public TestGrid testGrid ;
@@ -53,6 +90,11 @@ public partial class Person : Animal,IAttacker, IAttacked
 
     public bool TryOnNull()
     {
+        if (!GameManager.Instance || GameManager.Instance.gameValue == null)
+        {
+            return false;
+        }
+
 //      if (place == PersonPlace.Ship)
 //        {
             /* if (!MainShip.CheckOnShip(transform.position))
@@ -65,7 +107,7 @@ public partial class Person : Animal,IAttacker, IAttacked
                          if (MainShip.CheckOnShip(transform.position + offset))
                          {
                              transform.position += offset;
-                             Debug.Log("������������");
+                             Debug.Log("锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷");
                              return true;
                          }
                      }
@@ -75,7 +117,7 @@ public partial class Person : Animal,IAttacker, IAttacked
             var timer = GameManager.Instance.gameValue.currentPeriod - OnNullTimer;
             if (timer > onNullTimeMax)
             {
-//               Debug.Log($"Ѱ·����ʧ������ [{Title}] {timer * GameValue.PeriodRate:f0}s");
+//               Debug.Log($"寻路锟斤拷锟斤拷失锟斤拷锟斤拷锟斤拷 [{Title}] {timer * GameValue.PeriodRate:f0}s");
                 OnNullTimer = GameManager.Instance.gameValue.currentPeriod;
                 transform.localPosition = new Vector3(0, 0, transform.localPosition.z);
                 return true;
@@ -88,16 +130,36 @@ public partial class Person : Animal,IAttacker, IAttacked
     {
         base.Start();
 //     testGrid = GameObject.Find("TestGrid").GetComponent<TestGrid>();
-        FindPathPlus.pathGrid = shiper.ShipGrid;
+        if (!shiper)
+        {
+            shiper = GetComponentInParent<Shiper>();
+        }
+
+        if (shiper)
+        {
+            FindPathPlus.pathGrid = shiper.ShipGrid;
+        }
+
+        if (!CurrentRegion)
+        {
+            SetCurrentRegion(GetComponentInParent<NavigationRegion>());
+        }
 
 
     }
 
-   protected override void Awake()
+    protected override void Awake()
     {
         base.Awake();
-        
         IBehavior = GetComponent<AIBehavior>();
+        Navigation = GetComponent<PersonNavigation>();
+        if (!Navigation)
+        {
+            Navigation = gameObject.AddComponent<PersonNavigation>();
+        }
+
+        EvaCapability = GetComponent<EvaCapability>();
+        TaskController.Instance?.AddPerson(this);
 
 //      OnTestPath();
 
@@ -105,6 +167,120 @@ public partial class Person : Animal,IAttacker, IAttacked
 
     }
 
+
+    public void SetCurrentRegion(NavigationRegion region)
+    {
+        CurrentRegion = region;
+        if (region && region.Grid != null)
+        {
+            FindPathPlus.pathGrid = region.Grid;
+        }
+    }
+
+    public void SetWorkPriority(Constants.WorkKind workKind, int priority)
+    {
+        if (!WorkProfile.SetPriority(workKind, priority))
+        {
+            return;
+        }
+
+        JobSystem.Instance?.NotifyPersonChanged(this);
+        TaskController.Instance?.RequestAssignment(this);
+    }
+
+    public void SetScheduleActivity(int slotIndex, ScheduleActivity activity)
+    {
+        if (!ScheduleProfile.SetActivity(slotIndex, activity))
+        {
+            return;
+        }
+
+        ScheduleSystem.Instance?.NotifyProfileChanged(this);
+    }
+
+    public bool TryMoveSafely(Vector2 desiredDelta, out Vector2 actualDelta)
+    {
+        actualDelta = Vector2.zero;
+        LastMovementBlocker = null;
+        float distance = desiredDelta.magnitude;
+        if (distance <= 0.0001f)
+        {
+            return true;
+        }
+
+        Vector2 direction = desiredDelta / distance;
+        Collider2D movementCollider = GetComponent<Collider2D>();
+        float safeDistance = distance;
+        bool blocked = false;
+
+        if (movementCollider && movementCollider.enabled)
+        {
+            ContactFilter2D filter = new ContactFilter2D();
+            filter.SetLayerMask(Physics2D.AllLayers);
+            filter.useTriggers = false;
+            RaycastHit2D[] hits = new RaycastHit2D[16];
+            int hitCount = movementCollider.Cast(direction, filter, hits, distance + 0.01f);
+            for (int i = 0; i < hitCount; i++)
+            {
+                RaycastHit2D hit = hits[i];
+                if (!hit.collider || hit.collider == movementCollider || hit.collider.isTrigger ||
+                    hit.collider.GetComponentInParent<Person>() == this ||
+                    hit.distance <= 0.001f && IsMovingAwayFromCollider(
+                        hit.collider,
+                        transform.position,
+                        (Vector2)transform.position + desiredDelta))
+                {
+                    continue;
+                }
+
+                blocked = true;
+                if (!LastMovementBlocker || hit.distance < safeDistance)
+                {
+                    LastMovementBlocker = hit.collider;
+                }
+                safeDistance = Mathf.Min(safeDistance, Mathf.Max(0f, hit.distance - 0.01f));
+            }
+        }
+
+        Vector2 move = direction * safeDistance;
+        transform.position += (Vector3)move;
+        actualDelta = move;
+        return !blocked || safeDistance >= distance - 0.0001f;
+    }
+
+    private static bool IsMovingAwayFromCollider(Collider2D blocker, Vector2 from, Vector2 to)
+    {
+        if (!blocker)
+        {
+            return false;
+        }
+
+        float fromDistance = Vector2.SqrMagnitude(from - blocker.ClosestPoint(from));
+        float toDistance = Vector2.SqrMagnitude(to - blocker.ClosestPoint(to));
+        return toDistance > fromDistance + 0.0001f;
+    }
+
+    [System.NonSerialized]
+    private Collider2D lastMovementBlocker;
+    public Collider2D LastMovementBlocker
+    {
+        get => lastMovementBlocker;
+        private set => lastMovementBlocker = value;
+    }
+
+    protected override void OnDestroy()
+    {
+        Navigation?.Cancel();
+        ReservationManager.Instance?.ReleaseAll(this);
+        if (TaskController.Instance)
+        {
+            TaskController.Instance.RemovePerson(this);
+        }
+
+        ScheduleSystem.Instance?.Unregister(this);
+
+        base.OnDestroy();
+    }
 
     private void DebugPosition()
     {
@@ -127,7 +303,7 @@ public partial class Person : Animal,IAttacker, IAttacked
         }
     }*/
     public int roleID;
-    // ��ɫ��ȫ��
+    // 锟斤拷色锟斤拷全锟斤拷
     [SerializeField]
     private string fullName;
 
@@ -150,7 +326,7 @@ public partial class Person : Animal,IAttacker, IAttacked
 
     private float moveSpeedSlow;
     private const float moveSpeedSlowRate = 0.5f;
-    private float moveSpeedSlowRateTemp; // ��ʱ�ƶ��ٶȼ�����
+    private float moveSpeedSlowRateTemp; // 锟斤拷时锟狡讹拷锟劫度硷拷锟斤拷锟斤拷
     public float MoveSpeedSlow
     {
         get
@@ -169,24 +345,24 @@ public partial class Person : Animal,IAttacker, IAttacked
         }
     }
 
-    // ��������
+    // 锟斤拷锟斤拷锟斤拷锟斤拷
     public const float AbilityRate = 0.2f;
     private static float AbilityMax = 20;
 
-    public BaseProperty strength; // ��������
-    public BaseProperty mentality; // ��������
-    public BaseProperty charm; // ��������
+    public BaseProperty strength; // 锟斤拷锟斤拷锟斤拷锟斤拷
+    public BaseProperty mentality; // 锟斤拷锟斤拷锟斤拷锟斤拷
+    public BaseProperty charm; // 锟斤拷锟斤拷锟斤拷锟斤拷
 
-    // ������getter��ȷ��ֵ��0��AbilityMax֮��
+    // 锟斤拷锟斤拷锟斤拷getter锟斤拷确锟斤拷值锟斤拷0锟斤拷AbilityMax之锟斤拷
     public float Strength => GetBasePropertyValue(strength);
 
-    // �����getter��ȷ��ֵ��0��AbilityMax֮��
+    // 锟斤拷锟斤拷锟絞etter锟斤拷确锟斤拷值锟斤拷0锟斤拷AbilityMax之锟斤拷
     public float Mentality => GetBasePropertyValue(mentality);
 
-    // ������getter��ȷ��ֵ��0��AbilityMax֮��
+    // 锟斤拷锟斤拷锟斤拷getter锟斤拷确锟斤拷值锟斤拷0锟斤拷AbilityMax之锟斤拷
     public float Charm => GetBasePropertyValue(charm);
 
-    // ��ȡ��������ֵ�ķ�����ȷ��ֵ��0��AbilityMax֮��
+    // 锟斤拷取锟斤拷锟斤拷锟斤拷锟斤拷值锟侥凤拷锟斤拷锟斤拷确锟斤拷值锟斤拷0锟斤拷AbilityMax之锟斤拷
     private float GetBasePropertyValue(BaseProperty baseProperty)
     {
         if (baseProperty.Value < 0)
@@ -200,30 +376,30 @@ public partial class Person : Animal,IAttacker, IAttacked
         return baseProperty.Value;
     }
 
-    #region ��̬������ֵ
-    [Title("������ֵ����")]
-    public float MoodDegreeMax = 100; // �������ֵ
-    public float SatiationDegreeMax = 100; // ��ʳ�����ֵ
-    public float VigorDegreeMax = 100; // �������ֵ
-    public float MoistureDegreeMax = 100; // ˮ�����ֵ
+    #region 锟斤拷态锟斤拷锟斤拷锟斤拷值
+    [Title("锟斤拷锟斤拷锟斤拷值锟斤拷锟斤拷")]
+    public float MoodDegreeMax = 100; // 锟斤拷锟斤拷锟斤拷锟街?
+    public float SatiationDegreeMax = 100; // 锟斤拷食锟斤拷锟斤拷锟街?
+    public float VigorDegreeMax = 100; // 锟斤拷锟斤拷锟斤拷锟街?
+    public float MoistureDegreeMax = 100; // 水锟斤拷锟斤拷锟街?
 
-    public float MoodSpeed = 0; // ����仯�ٶ�
-    public float SatiationSpeed = -50 / GameValue.PeriodRate; // ��ʳ�ȱ仯�ٶ�
-    public float VigorSpeed = -70 / GameValue.PeriodRate; // �����仯�ٶ�
-    public float MoistureSpeed = -50 / GameValue.PeriodRate; // ˮ�ֱ仯�ٶ�
+    public float MoodSpeed = 0; // 锟斤拷锟斤拷浠拷俣锟?
+    public float SatiationSpeed = -50 / GameValue.PeriodRate; // 锟斤拷食锟饺变化锟劫讹拷
+    public float VigorSpeed = -70 / GameValue.PeriodRate; // 锟斤拷锟斤拷锟戒化锟劫讹拷
+    public float MoistureSpeed = -50 / GameValue.PeriodRate; // 水锟街变化锟劫讹拷
 
-    [Title("������ֵ")]
-    public Vector2 MoodRange = new Vector2(0, 15); // ���鷶Χ
-    public Vector2 SatiationRange = new Vector2(0, 15); // ��ʳ�ȷ�Χ
-    public Vector2 VigorRange = new Vector2(0, 15); // ������Χ
-    public Vector2 MoistureRange = new Vector2(0, 15); // ˮ�ַ�Χ
-    public Vector2 HumidityRange = new Vector2(0.1f, 0.5f); // ʪ�ȷ�Χ
-    public Vector2 TemperatureRange = new Vector2(0, 50); // �¶ȷ�Χ
-    public Vector2 AestheticRateRange = new Vector2(-25, 25); // ���۶ȷ�Χ
+    [Title("锟斤拷锟斤拷锟斤拷值")]
+    public Vector2 MoodRange = new Vector2(0, 15); // 锟斤拷锟介范围
+    public Vector2 SatiationRange = new Vector2(0, 15); // 锟斤拷食锟饺凤拷围
+    public Vector2 VigorRange = new Vector2(0, 15); // 锟斤拷锟斤拷锟斤拷围
+    public Vector2 MoistureRange = new Vector2(0, 15); // 水锟街凤拷围
+    public Vector2 HumidityRange = new Vector2(0.1f, 0.5f); // 湿锟饺凤拷围
+    public Vector2 TemperatureRange = new Vector2(0, 50); // 锟铰度凤拷围
+    public Vector2 AestheticRateRange = new Vector2(-25, 25); // 锟斤拷锟桔度凤拷围
 
-    [Title("��̬������ֵ")]
+    [Title("锟斤拷态锟斤拷锟斤拷锟斤拷值")]
     [SerializeField]
-    private float moodDegree; // ��ǰ����ֵ
+    private float moodDegree; // 锟斤拷前锟斤拷锟斤拷值
 
 
 
@@ -248,9 +424,9 @@ public partial class Person : Animal,IAttacker, IAttacked
     }
 
     [SerializeField]
-    private float satiationDegree; // ��ǰ��ʳ��
+    private float satiationDegree; // 锟斤拷前锟斤拷食锟斤拷
 
-    // ��ʳ�ȵ�getter��setter��ȷ��ֵ��0��SatiationDegreeMax֮��
+    // 锟斤拷食锟饺碉拷getter锟斤拷setter锟斤拷确锟斤拷值锟斤拷0锟斤拷SatiationDegreeMax之锟斤拷
     public float SatiationDegree
     {
         get => satiationDegree;
@@ -272,9 +448,9 @@ public partial class Person : Animal,IAttacker, IAttacked
     }
 
     [SerializeField]
-    private float vigorDegree; // ��ǰ����ֵ
+    private float vigorDegree; // 锟斤拷前锟斤拷锟斤拷值
 
-    // ����ֵ��getter��setter��ȷ��ֵ��0��VigorDegreeMax֮��
+    // 锟斤拷锟斤拷值锟斤拷getter锟斤拷setter锟斤拷确锟斤拷值锟斤拷0锟斤拷VigorDegreeMax之锟斤拷
     public float VigorDegree
     {
         get => vigorDegree;
@@ -296,8 +472,8 @@ public partial class Person : Animal,IAttacker, IAttacked
     }
 
     [SerializeField]
-    private float moistureDegree; // ��ǰˮ��ֵ
-    // ˮ��ֵ��getter��setter��ȷ��ֵ��0��MoistureDegreeMax֮��
+    private float moistureDegree; // 锟斤拷前水锟斤拷值
+    // 水锟斤拷值锟斤拷getter锟斤拷setter锟斤拷确锟斤拷值锟斤拷0锟斤拷MoistureDegreeMax之锟斤拷
     public float MoistureDegree
     {
         get => moistureDegree;
@@ -325,16 +501,16 @@ public partial class Person : Animal,IAttacker, IAttacked
 
     private void PerfectBaseProperty()
     {
-        MoodDegree = MoodDegreeMax; // ��������Ϊ���ֵ
-        SatiationDegree = SatiationDegreeMax; // ���ñ�ʳ��Ϊ���ֵ
-        VigorDegree = VigorDegreeMax; // ���û���Ϊ���ֵ
-        MoistureDegree = MoistureDegreeMax; // ����ˮ��Ϊ���ֵ
-        Health = HealthMax; // ���ý���Ϊ���ֵ
+        MoodDegree = MoodDegreeMax; // 锟斤拷锟斤拷锟斤拷锟斤拷为锟斤拷锟街?
+        SatiationDegree = SatiationDegreeMax; // 锟斤拷锟矫憋拷食锟斤拷为锟斤拷锟街?
+        VigorDegree = VigorDegreeMax; // 锟斤拷锟矫伙拷锟斤拷为锟斤拷锟街?
+        MoistureDegree = MoistureDegreeMax; // 锟斤拷锟斤拷水锟斤拷为锟斤拷锟街?
+        Health = HealthMax; // 锟斤拷锟矫斤拷锟斤拷为锟斤拷锟街?
     }
 
  //   public bool CheckPlayerRole()
  //   {
-  //      return Shiper == GameManager.Instance.fleet.Shiper; // ���ص�ǰ���Ƿ�����Ҵ�
+  //      return Shiper == GameManager.Instance.fleet.Shiper; // 锟斤拷锟截碉拷前锟斤拷锟角凤拷锟斤拷锟斤拷掖锟?
 /// <summary>
 ///    }
 /// </summary>
@@ -359,9 +535,9 @@ public partial class Person : Animal,IAttacker, IAttacked
         {
             objTypes[i] = objects[i].GetType();
         }
-        var constructorInfo = type.GetConstructor(objTypes); // ��ȡ���캯��
-        T obj = constructorInfo.Invoke(objects) as T; // ʵ��������
-        TaskController.Instance.AddTaskToMain(obj, this); // ��������ӵ��������б�
+        var constructorInfo = type.GetConstructor(objTypes); // 锟斤拷取锟斤拷锟届函锟斤拷
+        T obj = constructorInfo.Invoke(objects) as T; // 实锟斤拷锟斤拷锟斤拷锟斤拷
+        TaskController.Instance.AddTaskToMain(obj, this); // 锟斤拷锟斤拷锟斤拷锟斤拷拥锟斤拷锟斤拷锟斤拷锟斤拷斜锟?
         return obj;
     }
 
@@ -431,7 +607,7 @@ public partial class Person : Animal,IAttacker, IAttacked
 //      GameAudioManager.Instance.PlaySound(69, false);
       OnAttackEvent?.Invoke(attacked);
 
-//      Communicator.OnLog(0.1f, $"{ColorUtil.SetTextColor((attacked as Entity).Title, ColorUtil.ColorKind.Blue)} ������ {Communicator.GetItemsName(Communicator.relationNames_1)}");
+//      Communicator.OnLog(0.1f, $"{ColorUtil.SetTextColor((attacked as Entity).Title, ColorUtil.ColorKind.Blue)} 锟斤拷锟斤拷锟斤拷 {Communicator.GetItemsName(Communicator.relationNames_1)}");
 //      BubbleEmoji.OnAttack(0.1f);
     }
 
@@ -453,7 +629,7 @@ public partial class Person : Animal,IAttacker, IAttacked
 
         /*      if (attacker != null)
                 {
-                    Communicator.OnLog(0.1f, $"{ColorUtil.SetTextColor((attacker as Entity).Title, ColorUtil.ColorKind.Blue)} ������ {Communicator.GetItemsName(Communicator.relationNames_1)}");
+                    Communicator.OnLog(0.1f, $"{ColorUtil.SetTextColor((attacker as Entity).Title, ColorUtil.ColorKind.Blue)} 锟斤拷锟斤拷锟斤拷 {Communicator.GetItemsName(Communicator.relationNames_1)}");
                     BubbleEmoji.OnHurt(0.1f);
                 } */
 
@@ -464,17 +640,17 @@ public partial class Person : Animal,IAttacker, IAttacked
     }
 }
 
-// ��ӷ�������
+// 锟斤拷臃锟斤拷锟斤拷锟斤拷锟?
 //  public void AddReturnTask()
 //  {
-//      if (place == PersonPlace.Land) // �����ɫ��½����
+//      if (place == PersonPlace.Land) // 锟斤拷锟斤拷锟缴拷锟铰斤拷锟斤拷锟?
 //      {
-//          var returnTask = IBehavior.AITasks.Find(task => task is MyLandingReturnTask); // ���ҷ�������
-//           if (returnTask == null) // ���û���ҵ���������
+//          var returnTask = IBehavior.AITasks.Find(task => task is MyLandingReturnTask); // 锟斤拷锟揭凤拷锟斤拷锟斤拷锟斤拷
+//           if (returnTask == null) // 锟斤拷锟矫伙拷锟斤拷业锟斤拷锟斤拷锟斤拷锟斤拷锟?
 //           {
-//               if (ShipLinkerUnit.OpenLinker != null) // ����д򿪵�������
+//               if (ShipLinkerUnit.OpenLinker != null) // 锟斤拷锟斤拷写蚩锟斤拷锟斤拷锟斤拷锟?
 //               {
-//                   ShipLinkerUnit.OpenLinker.TryReturn(this); // ���Է��ش���
+//                   ShipLinkerUnit.OpenLinker.TryReturn(this); // 锟斤拷锟皆凤拷锟截达拷锟斤拷
 //               }
 //           }
 //       }

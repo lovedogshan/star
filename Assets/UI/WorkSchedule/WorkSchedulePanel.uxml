@@ -1,0 +1,38 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="project://database/Assets/UI/WorkSchedule/WorkSchedulePanel.uss" />
+    <ui:VisualElement name="schedule-panel" class="schedule-overlay">
+        <ui:VisualElement class="schedule-window">
+            <ui:VisualElement class="window-header">
+                <ui:Label text="员工管理" class="window-title" />
+                <ui:Label name="selected-person" text="未找到员工" class="selected-person" />
+                <ui:Button name="close-button" text="×" tooltip="关闭" class="icon-button" />
+            </ui:VisualElement>
+            <ui:VisualElement class="window-body">
+                <ui:VisualElement class="people-pane">
+                    <ui:Label text="员工" class="section-title" />
+                    <ui:ScrollView name="people-list" class="people-list" />
+                </ui:VisualElement>
+                <ui:VisualElement class="content-pane">
+                    <ui:VisualElement class="tabs">
+                        <ui:Button name="priority-tab" text="工作优先级" class="tab-button" />
+                        <ui:Button name="schedule-tab" text="时间表" class="tab-button" />
+                        <ui:VisualElement class="tab-spacer" />
+                        <ui:Label name="current-hour" text="当前时段 00:00" class="current-hour" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="priority-page" class="page">
+                        <ui:VisualElement class="page-heading">
+                            <ui:Label text="工作类型" />
+                            <ui:Label text="优先级（0 禁用，4 最高）" />
+                        </ui:VisualElement>
+                        <ui:ScrollView name="priority-rows" class="priority-rows" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="schedule-page" class="page">
+                        <ui:VisualElement name="activity-toolbar" class="activity-toolbar" />
+                        <ui:Label text="选择活动后点击时段进行安排" class="schedule-hint" />
+                        <ui:VisualElement name="schedule-grid" class="schedule-grid" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -17,6 +17,7 @@ namespace CodeMonkey.CameraSystem
         [SerializeField] private Transform pilotingTarget;
         [SerializeField] private float onFootOrthographicSize = 18f;
         [SerializeField] private float pilotingOrthographicSize = 50f;
+        [SerializeField] private float commandOrthographicSize = 28f;
         [SerializeField] private float zoomSpeed = 10f;
         [SerializeField] private float zoomStep = 5f;
 
@@ -27,6 +28,7 @@ namespace CodeMonkey.CameraSystem
         private Transform activeTarget;
         private ShipVisualController visualController;
         private bool lastPilotingState;
+        private bool commandViewActive;
 
         private void Awake()
         {
@@ -188,7 +190,9 @@ namespace CodeMonkey.CameraSystem
             Transform desiredTarget = isPiloting ? ResolvePilotingTarget() : ResolvePlayerTarget();
             ApplyFollowTarget(desiredTarget);
 
-            float desiredSize = isPiloting ? pilotingOrthographicSize : onFootOrthographicSize;
+            float desiredSize = isPiloting
+                ? pilotingOrthographicSize
+                : commandViewActive ? commandOrthographicSize : onFootOrthographicSize;
             targetOrthographicSize = Mathf.Clamp(desiredSize, orthographicSizeMin, orthographicSizeMax);
 
             if (instant && cinemachineVirtualCamera != null)
@@ -331,6 +335,12 @@ namespace CodeMonkey.CameraSystem
 
             lastPilotingState = false;
             ApplyControlModeCamera(false, false);
+        }
+
+        public void SetCommandView(bool active)
+        {
+            commandViewActive = active && !IsPiloting();
+            ApplyControlModeCamera(IsPiloting(), false);
         }
     }
 }

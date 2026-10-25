@@ -1,0 +1,35 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="project://database/Assets/UI/Commands/CommandOverlay.uss" />
+    <ui:VisualElement name="command-overlay" class="command-root">
+        <ui:VisualElement class="command-panel">
+            <ui:VisualElement class="command-main">
+                <ui:VisualElement class="command-topbar">
+                    <ui:Label text="指挥模式" class="command-title" />
+                    <ui:Label name="command-mode-label" text="移动" class="command-mode-label" />
+                    <ui:VisualElement class="command-spacer" />
+                    <ui:Label text="当前员工" class="command-caption" />
+                    <ui:Label name="command-selected-worker" text="未选择员工" class="command-worker" />
+                    <ui:Button name="command-next-worker" text="切换" tooltip="切换到下一名员工" class="command-secondary" />
+                    <ui:Button name="command-close" text="×" tooltip="关闭指挥模式" class="command-close" />
+                </ui:VisualElement>
+                <ui:VisualElement class="command-toolbar">
+                    <ui:Button name="command-move" text="移动" tooltip="点击地面命令员工移动" class="command-tool" />
+                    <ui:Button name="command-work" text="工作" tooltip="点击支持任务的设施或目标" class="command-tool" />
+                    <ui:Button name="command-prioritize" text="优先" tooltip="提高已有任务优先级，或立即发布工作" class="command-tool" />
+                    <ui:Button name="command-emergency" text="紧急" tooltip="紧急任务可越过普通排班" class="command-tool command-danger" />
+                    <ui:Button name="command-zone" text="区域" tooltip="划定物资存放区" class="command-tool command-zone-button" />
+                    <ui:Button name="command-cancel" text="取消" tooltip="点击世界标记取消任务" class="command-tool" />
+                </ui:VisualElement>
+                <ui:Label name="command-feedback" text="" class="command-feedback" />
+            </ui:VisualElement>
+            <ui:VisualElement class="command-task-panel">
+                <ui:Label text="玩家指令" class="command-section-title" />
+                <ui:ScrollView name="command-task-list" class="command-task-list" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="zone-type-dropdown" class="zone-type-dropdown">
+            <ui:Label text="选择区域功能" class="zone-type-title" />
+            <ui:ScrollView name="zone-type-list" class="zone-type-list" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

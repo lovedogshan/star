@@ -403,6 +403,8 @@ GameObject:
   - component: {fileID: 1729673716831423648}
   - component: {fileID: 5652706317087998995}
   - component: {fileID: 2412489705293319705}
+  - component: {fileID: 2412489710000000001}
+  - component: {fileID: 2412489710000000002}
   m_Layer: 0
   m_Name: ship
   m_TagString: Player
@@ -572,7 +574,35 @@ MonoBehaviour:
     mountPointTransform: {fileID: 5136347428123793525}
     pointType: 0
     compatibleParts: 00000000
-    maxSupportSize: 0
+  maxSupportSize: 0
+--- !u!114 &2412489710000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4878363004479795149}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e8818f81d91be1499ec25e6bf78cd6c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &2412489710000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4878363004479795149}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08c2e69ce6904c3448c6e2a2339607fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  regionId: 100
+  domain: 0
+  coordinateRoot: {fileID: 2884793908495805415}
+  shipGridOwner: {fileID: 2412489710000000001}
     maxWeaponSize: 0
     previewAnchorPos: {x: 0.48, y: 0.88}
   - pointName: "\u53F3\u56FA\u5B9A\u70AE\u4F4D"
